@@ -68,7 +68,11 @@ class AuthRepository {
   Future<AuthState> loginWithNip07() async {
     await _signerService.loginWithNip07();
     _nostrService.updateSigner();
-    await publishRelayLists();
+    try {
+      await publishRelayLists();
+    } catch (e) {
+      // Non-critical relay list broadcast shouldn't abort initial login
+    }
     return currentState;
   }
 

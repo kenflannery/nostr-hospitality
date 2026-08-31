@@ -2,37 +2,55 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:js_interop';
 import 'dart:js_interop_unsafe';
+import 'package:web/web.dart' as web;
 import 'package:ndk/entities.dart';
 
-JSObject? _getNostrObject() {
-  if (!globalContext.hasProperty('nostr'.toJS).toDart) {
-    return null;
+String _toDartString(JSAny? val) {
+  if (val == null) return '';
+  final dartified = val.dartify();
+  if (dartified != null) {
+    return dartified.toString().trim();
   }
-  return globalContext.getProperty('nostr'.toJS) as JSObject?;
+  return '';
 }
 
 Future<bool> isNip07Available() async {
-  return _getNostrObject() != null;
+  try {
+    final win = web.window as JSObject;
+    return win.hasProperty('nostr'.toJS).toDart && win.getProperty('nostr'.toJS) != null;
+  } catch (_) {
+    return false;
+  }
 }
 
 Future<String> getNip07PublicKey() async {
-  final nostr = _getNostrObject();
+  final win = web.window as JSObject;
+  final nostr = win.getProperty('nostr'.toJS);
   if (nostr == null) {
     throw StateError('No NIP-07 browser extension (e.g. Alby, nos2x) detected on window.nostr');
   }
 
-  final promise = nostr.callMethod('getPublicKey'.toJS) as JSPromise;
-  final result = await promise.toDart;
-  return (result as JSString).toDart;
+  try {
+    final promise = (nostr as JSObject).callMethod<JSPromise<JSAny?>>('getPublicKey'.toJS);
+    final result = await promise.toDart;
+    final pubkey = _toDartString(result);
+
+    if (pubkey.isEmpty) {
+      throw StateError('Browser extension returned empty public key');
+    }
+    return pubkey;
+  } catch (e) {
+    throw StateError('Extension authorization failed: $e');
+  }
 }
 
 Future<Nip01Event> signEventWithNip07(Nip01Event event) async {
-  final nostr = _getNostrObject();
+  final win = web.window as JSObject;
+  final nostr = win.getProperty('nostr'.toJS);
   if (nostr == null) {
     throw StateError('No NIP-07 extension detected');
   }
 
-  // Convert Nip01Event to JS Object
   final eventMap = {
     'kind': event.kind,
     'content': event.content,
@@ -41,14 +59,19 @@ Future<Nip01Event> signEventWithNip07(Nip01Event event) async {
     'pubkey': event.pubKey,
   };
 
-  final jsEvent = jsonEncode(eventMap).toJS;
-  final parsedJsObj = globalContext.getProperty('JSON'.toJS) as JSObject;
-  final jsEventObj = parsedJsObj.callMethod('parse'.toJS, jsEvent) as JSObject;
-
-  final promise = nostr.callMethod('signEvent'.toJS, jsEventObj) as JSPromise;
+  final jsEventObj = eventMap.jsify();
+  final promise = (nostr as JSObject).callMethod<JSPromise<JSAny?>>('signEvent'.toJS, jsEventObj);
   final signedJsResult = await promise.toDart;
-  final stringified = (parsedJsObj.callMethod('stringify'.toJS, signedJsResult as JSAny) as JSString).toDart;
-  final decoded = jsonDecode(stringified) as Map<String, dynamic>;
+  final dartified = signedJsResult?.dartify();
+
+  Map<String, dynamic> decoded;
+  if (dartified is Map) {
+    decoded = Map<String, dynamic>.from(dartified);
+  } else if (dartified != null) {
+    decoded = jsonDecode(dartified.toString()) as Map<String, dynamic>;
+  } else {
+    throw StateError('Extension returned null from signEvent');
+  }
 
   return Nip01Event(
     id: decoded['id'] as String? ?? event.id,
@@ -65,41 +88,69 @@ Future<Nip01Event> signEventWithNip07(Nip01Event event) async {
 }
 
 Future<String?> nip04EncryptWithNip07(String plaintext, String recipientPubKey) async {
-  final nostr = _getNostrObject();
-  if (nostr == null || !nostr.hasProperty('nip04'.toJS).toDart) return null;
+  final win = web.window as JSObject;
+  final nostr = win.getProperty('nostr'.toJS);
+  if (nostr == null) return null;
 
-  final nip04 = nostr.getProperty('nip04'.toJS) as JSObject;
-  final promise = nip04.callMethod('encrypt'.toJS, recipientPubKey.toJS, plaintext.toJS) as JSPromise;
-  final result = await promise.toDart;
-  return (result as JSString).toDart;
+  try {
+    final nostrObj = nostr as JSObject;
+    if (!nostrObj.hasProperty('nip04'.toJS).toDart) return null;
+    final nip04 = nostrObj.getProperty('nip04'.toJS) as JSObject;
+    final promise = nip04.callMethod<JSPromise<JSAny?>>('encrypt'.toJS, recipientPubKey.toJS, plaintext.toJS);
+    final res = await promise.toDart;
+    return _toDartString(res);
+  } catch (_) {
+    return null;
+  }
 }
 
 Future<String?> nip04DecryptWithNip07(String ciphertext, String senderPubKey) async {
-  final nostr = _getNostrObject();
-  if (nostr == null || !nostr.hasProperty('nip04'.toJS).toDart) return null;
+  final win = web.window as JSObject;
+  final nostr = win.getProperty('nostr'.toJS);
+  if (nostr == null) return null;
 
-  final nip04 = nostr.getProperty('nip04'.toJS) as JSObject;
-  final promise = nip04.callMethod('decrypt'.toJS, senderPubKey.toJS, ciphertext.toJS) as JSPromise;
-  final result = await promise.toDart;
-  return (result as JSString).toDart;
+  try {
+    final nostrObj = nostr as JSObject;
+    if (!nostrObj.hasProperty('nip04'.toJS).toDart) return null;
+    final nip04 = nostrObj.getProperty('nip04'.toJS) as JSObject;
+    final promise = nip04.callMethod<JSPromise<JSAny?>>('decrypt'.toJS, senderPubKey.toJS, ciphertext.toJS);
+    final res = await promise.toDart;
+    return _toDartString(res);
+  } catch (_) {
+    return null;
+  }
 }
 
 Future<String?> nip44EncryptWithNip07(String plaintext, String recipientPubKey) async {
-  final nostr = _getNostrObject();
-  if (nostr == null || !nostr.hasProperty('nip44'.toJS).toDart) return null;
+  final win = web.window as JSObject;
+  final nostr = win.getProperty('nostr'.toJS);
+  if (nostr == null) return null;
 
-  final nip44 = nostr.getProperty('nip44'.toJS) as JSObject;
-  final promise = nip44.callMethod('encrypt'.toJS, recipientPubKey.toJS, plaintext.toJS) as JSPromise;
-  final result = await promise.toDart;
-  return (result as JSString).toDart;
+  try {
+    final nostrObj = nostr as JSObject;
+    if (!nostrObj.hasProperty('nip44'.toJS).toDart) return null;
+    final nip44 = nostrObj.getProperty('nip44'.toJS) as JSObject;
+    final promise = nip44.callMethod<JSPromise<JSAny?>>('encrypt'.toJS, recipientPubKey.toJS, plaintext.toJS);
+    final res = await promise.toDart;
+    return _toDartString(res);
+  } catch (_) {
+    return null;
+  }
 }
 
 Future<String?> nip44DecryptWithNip07(String ciphertext, String senderPubKey) async {
-  final nostr = _getNostrObject();
-  if (nostr == null || !nostr.hasProperty('nip44'.toJS).toDart) return null;
+  final win = web.window as JSObject;
+  final nostr = win.getProperty('nostr'.toJS);
+  if (nostr == null) return null;
 
-  final nip44 = nostr.getProperty('nip44'.toJS) as JSObject;
-  final promise = nip44.callMethod('decrypt'.toJS, senderPubKey.toJS, ciphertext.toJS) as JSPromise;
-  final result = await promise.toDart;
-  return (result as JSString).toDart;
+  try {
+    final nostrObj = nostr as JSObject;
+    if (!nostrObj.hasProperty('nip44'.toJS).toDart) return null;
+    final nip44 = nostrObj.getProperty('nip44'.toJS) as JSObject;
+    final promise = nip44.callMethod<JSPromise<JSAny?>>('decrypt'.toJS, senderPubKey.toJS, ciphertext.toJS);
+    final res = await promise.toDart;
+    return _toDartString(res);
+  } catch (_) {
+    return null;
+  }
 }
