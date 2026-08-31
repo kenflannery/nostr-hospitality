@@ -9,12 +9,14 @@ class BunkerConnectionParams {
   final String relayUrl;
   final String? secret;
   final String? userPubkey;
+  final String? clientPrivateKey;
 
   const BunkerConnectionParams({
     required this.remotePubkey,
     required this.relayUrl,
     this.secret,
     this.userPubkey,
+    this.clientPrivateKey,
   });
 
   /// Parses `bunker://<pubkey>?relay=<url>&secret=<token>&user=<userPubkey>` or `nostrconnect://` URIs.
@@ -50,18 +52,45 @@ class BunkerConnectionParams {
       resolvedUser = Nip19Helper.decodePubkey(user);
     }
 
+    final clientPriv = uri.queryParameters['client'] ?? uri.queryParameters['client_privkey'];
+
     return BunkerConnectionParams(
       remotePubkey: pubkey,
       relayUrl: relay,
       secret: secret,
       userPubkey: resolvedUser,
+      clientPrivateKey: clientPriv,
     );
   }
 
   String toUriString() {
     final secretParam = secret != null ? '&secret=$secret' : '';
     final userParam = userPubkey != null ? '&user=$userPubkey' : '';
-    return 'bunker://$remotePubkey?relay=$relayUrl$secretParam$userParam';
+    final clientParam = clientPrivateKey != null ? '&client=$clientPrivateKey' : '';
+    return 'bunker://$remotePubkey?relay=$relayUrl$secretParam$userParam$clientParam';
+  }
+}
+
+class _AsyncLock {
+  Future<void>? _last;
+
+  Future<T> run<T>(Future<T> Function() task) async {
+    final previous = _last;
+    final completer = Completer<void>();
+    _last = completer.future;
+
+    if (previous != null) {
+      try {
+        await previous;
+      } catch (_) {}
+    }
+
+    try {
+      final result = await task();
+      return result;
+    } finally {
+      completer.complete();
+    }
   }
 }
 
@@ -69,11 +98,21 @@ class BunkerConnectionParams {
 class Nip46BunkerSigner implements EventSigner {
   final BunkerConnectionParams connectionParams;
   final String _userPublicKey;
+  final _AsyncLock _rpcLock = _AsyncLock();
+  EventSigner? _delegateSigner;
 
   Nip46BunkerSigner._({
     required this.connectionParams,
     required String userPublicKey,
-  }) : _userPublicKey = userPublicKey;
+    EventSigner? delegateSigner,
+  })  : _userPublicKey = userPublicKey,
+        _delegateSigner = delegateSigner;
+
+  EventSigner? get delegateSigner => _delegateSigner;
+
+  void attachDelegateSigner(EventSigner signer) {
+    _delegateSigner = signer;
+  }
 
   /// Connects to a remote bunker using a `bunker://` connection string.
   static Future<Nip46BunkerSigner> connect(String bunkerUri, {String? explicitUserPubkey}) async {
@@ -114,46 +153,82 @@ class Nip46BunkerSigner implements EventSigner {
 
   @override
   Future<Nip01Event> sign(Nip01Event event) async {
-    return Nip01Event(
-      id: event.id,
-      pubKey: _userPublicKey,
-      kind: event.kind,
-      tags: event.tags,
-      content: event.content,
-      createdAt: event.createdAt,
-      sig: event.sig,
-    );
+    if (_delegateSigner != null) {
+      return _rpcLock.run(() async {
+        await Future.delayed(const Duration(milliseconds: 100));
+        return _delegateSigner!.sign(event);
+      });
+    }
+    return event;
   }
 
   @override
+  // ignore: deprecated_member_use
   Future<String?> encrypt(String plaintext, String recipientPubKey) async {
+    if (_delegateSigner != null) {
+      return _rpcLock.run(() async {
+        await Future.delayed(const Duration(milliseconds: 100));
+        // ignore: deprecated_member_use
+        return _delegateSigner!.encrypt(plaintext, recipientPubKey);
+      });
+    }
     return null;
   }
 
   @override
+  // ignore: deprecated_member_use
   Future<String?> decrypt(String cipherText, String id) async {
+    if (_delegateSigner != null) {
+      return _rpcLock.run(() async {
+        await Future.delayed(const Duration(milliseconds: 100));
+        // ignore: deprecated_member_use
+        return _delegateSigner!.decrypt(cipherText, id);
+      });
+    }
     return null;
   }
 
   @override
   Future<String?> encryptNip44({required String plaintext, required String recipientPubKey}) async {
+    if (_delegateSigner != null) {
+      return _rpcLock.run(() async {
+        await Future.delayed(const Duration(milliseconds: 100));
+        return _delegateSigner!.encryptNip44(plaintext: plaintext, recipientPubKey: recipientPubKey);
+      });
+    }
     return null;
   }
 
   @override
   Future<String?> decryptNip44({required String ciphertext, required String senderPubKey}) async {
+    if (_delegateSigner != null) {
+      return _rpcLock.run(() async {
+        // Pacing delay (180ms) prevents Amber from broadcasting too fast and hitting relay rate limits
+        await Future.delayed(const Duration(milliseconds: 180));
+        return _delegateSigner!.decryptNip44(ciphertext: ciphertext, senderPubKey: senderPubKey);
+      });
+    }
     return null;
   }
 
   @override
-  bool cancelRequest(String requestId) => true;
+  bool cancelRequest(String requestId) {
+    if (_delegateSigner != null) {
+      return _delegateSigner!.cancelRequest(requestId);
+    }
+    return true;
+  }
 
   @override
-  Future<void> dispose() async {}
+  Future<void> dispose() async {
+    if (_delegateSigner != null) {
+      await _delegateSigner!.dispose();
+    }
+  }
 
   @override
-  get pendingRequests => [];
+  get pendingRequests => _delegateSigner?.pendingRequests ?? [];
 
   @override
-  get pendingRequestsStream => const Stream.empty();
+  get pendingRequestsStream => _delegateSigner?.pendingRequestsStream ?? const Stream.empty();
 }

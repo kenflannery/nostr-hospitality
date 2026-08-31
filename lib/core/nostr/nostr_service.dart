@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'package:ndk/ndk.dart';
 import 'package:ndk/entities.dart';
+import 'package:ndk/shared/nips/nip01/bip340.dart';
 import 'relay_config.dart';
 import 'signer_service.dart';
+import 'signers/nip46_signer.dart';
 
 /// Core Nostr protocol coordinator wrapping the NDK engine.
 class NostrService {
@@ -39,15 +41,13 @@ class NostrService {
       ),
     );
 
-    if (signerService.isAuthenticated && signerService.eventSigner != null) {
-      _ndk.accounts.loginExternalSigner(signer: signerService.eventSigner!);
-    }
-
     _initialized = true;
   }
 
+  /// Initializes NDK instance and attaches active signer if authenticated.
   Future<void> init() async {
     _ensureInitialized();
+    updateSigner();
   }
 
   /// Ensures a user (sender or recipient) has fallback relay routing in cache.
@@ -73,7 +73,20 @@ class NostrService {
     _ensureInitialized();
 
     if (signerService.isAuthenticated && signerService.eventSigner != null) {
-      _ndk.accounts.loginExternalSigner(signer: signerService.eventSigner!);
+      final signer = signerService.eventSigner!;
+      if (signer is Nip46BunkerSigner && signer.delegateSigner == null) {
+        final clientPriv = signer.connectionParams.clientPrivateKey ??
+            Bip340.generatePrivateKey().privateKey!;
+        final conn = BunkerConnection(
+          privateKey: clientPriv,
+          remotePubkey: signer.connectionParams.remotePubkey,
+          relays: [signer.connectionParams.relayUrl],
+        );
+        final delegate = _ndk.bunkers.createSigner(conn);
+        delegate.cachedPublicKey = signer.getPublicKey();
+        signer.attachDelegateSigner(delegate);
+      }
+      _ndk.accounts.loginExternalSigner(signer: signer);
     } else {
       _ndk.accounts.logout();
     }

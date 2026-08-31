@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:ndk/entities.dart';
 import '../core/nostr/nostr_service.dart';
+import '../core/nostr/signer_service.dart';
 import '../models/chat_message.dart';
 
 /// Repository managing NIP-17 private user-to-user messaging.
@@ -42,9 +43,12 @@ class MessageRepository {
   /// Loads all conversation summaries for the logged-in user.
   Future<List<ConversationSummary>> loadConversations({bool forceRefresh = false}) async {
     try {
+      final isRemoteSigner = _nostrService.signerService.activeSignerType != SignerType.localKey;
+      final timeout = isRemoteSigner ? const Duration(seconds: 15) : const Duration(seconds: 5);
+
       final conversations = await _nostrService.ndk.dms.loadConversations(
         forceRefresh: forceRefresh,
-        timeout: const Duration(seconds: 4),
+        timeout: timeout,
       );
 
       final results = <ConversationSummary>[];
@@ -65,17 +69,39 @@ class MessageRepository {
       results.sort((a, b) => b.lastMessageTime.compareTo(a.lastMessageTime));
       return results;
     } catch (_) {
-      return [];
+      try {
+        final cached = await _nostrService.ndk.dms.loadConversationsSnapshot();
+        final results = <ConversationSummary>[];
+        for (final conv in cached) {
+          final lastMsg = conv.latestMessage;
+          final createdAt = conv.latestCreatedAt;
+          results.add(
+            ConversationSummary(
+              otherPubkey: conv.peerPubKey,
+              lastMessage: lastMsg.content,
+              lastMessageTime: DateTime.fromMillisecondsSinceEpoch(createdAt * 1000),
+              unreadCount: 0,
+            ),
+          );
+        }
+        results.sort((a, b) => b.lastMessageTime.compareTo(a.lastMessageTime));
+        return results;
+      } catch (_) {
+        return [];
+      }
     }
   }
 
   /// Loads the message history for a specific conversation with [peerPubkey].
   Future<List<ChatMessage>> loadMessages(String peerPubkey, {bool forceRefresh = false}) async {
     try {
+      final isRemoteSigner = _nostrService.signerService.activeSignerType != SignerType.localKey;
+      final timeout = isRemoteSigner ? const Duration(seconds: 15) : const Duration(seconds: 5);
+
       final messagesList = await _nostrService.ndk.dms.loadConversation(
         peerPubKey: peerPubkey,
         forceRefresh: forceRefresh,
-        timeout: const Duration(seconds: 4),
+        timeout: timeout,
       );
 
       final myPubkey = _nostrService.signerService.activePublicKey;
@@ -95,7 +121,26 @@ class MessageRepository {
       messages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
       return messages;
     } catch (_) {
-      return [];
+      try {
+        final cached = await _nostrService.ndk.dms.loadConversationSnapshot(peerPubKey: peerPubkey);
+        final myPubkey = _nostrService.signerService.activePublicKey;
+        final messages = cached.map((m) {
+          final isMine = m.isOutgoing;
+          return ChatMessage(
+            id: m.id,
+            senderPubkey: isMine ? (myPubkey ?? '') : peerPubkey,
+            recipientPubkey: isMine ? peerPubkey : (myPubkey ?? ''),
+            content: m.content,
+            createdAt: DateTime.fromMillisecondsSinceEpoch(m.createdAt * 1000),
+            isMine: isMine,
+          );
+        }).toList();
+
+        messages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+        return messages;
+      } catch (_) {
+        return [];
+      }
     }
   }
 
