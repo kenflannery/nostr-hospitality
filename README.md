@@ -138,6 +138,7 @@ References are **regular, historical Nostr events** (not addressable or replacea
 - `context` (**OPTIONAL**): Nature of the interaction (`hospitality`, `meeting`, `travel`, `transaction`, `service`, `work_exchange`, `other`).
 - `role` (**OPTIONAL**): Author's role in the interaction (`host`, `guest`, `traveler`, `buyer`, `seller`, `customer`, `provider`, `other`).
 - `sentiment` (**OPTIONAL**): Coarse assessment (`positive`, `neutral`, `negative`). Absence of sentiment is strictly `null` and **MUST NOT** be counted as neutral.
+- `start` / `end` (**OPTIONAL**): Unix timestamps specifying when the physical interaction/stay took place (e.g. `["start", "1718064000"]`, `["end", "1718582400"]`).
 - `t` (**OPTIONAL**): Arbitrary interaction trait and label hashtags (`communicative`, `clean`, `inspiring`, `respectful`, `prompt`).
 - `a` (**OPTIONAL**): Addressable coordinate of an associated object (e.g. `30402:<host-pubkey>:<d-tag>`).
 - `e` (**OPTIONAL**): Associated specific event ID.
@@ -153,6 +154,8 @@ References are **regular, historical Nostr events** (not addressable or replacea
     ["context", "hospitality"],
     ["role", "guest"],
     ["sentiment", "positive"],
+    ["start", "1718064000"],
+    ["end", "1718582400"],
     ["t", "communicative"],
     ["t", "clean"],
     ["t", "great_cook"],

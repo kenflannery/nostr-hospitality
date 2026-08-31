@@ -33,6 +33,8 @@ The event's `.content` contains the free-form reference statement written by the
     ["context", "hospitality"],
     ["role", "guest"],
     ["sentiment", "positive"],
+    ["start", "1718064000"],
+    ["end", "1718582400"],
     ["t", "communicative"],
     ["t", "clean"],
     ["t", "great_cook"],
@@ -92,6 +94,20 @@ Allowed values:
 - `negative`
 
 > **CRITICAL RULE ON SENTIMENT NULLABILITY**:  
+> Absence of a `sentiment` tag **MUST** be treated as `null` / unclassified. Clients **MUST NOT** coerce missing sentiments into `"neutral"`.
+
+### `start` and `end` (OPTIONAL)
+Interaction dates specify when the encounter, stay, trip, or transaction took place in the physical world (aligned with [NIP-52](https://github.com/nostr-protocol/nips/blob/master/52.md) time conventions):
+```json
+["start", "1718064000"],
+["end", "1718582400"]
+```
+- Values **MUST** be Unix timestamps (integer seconds as strings).
+- **Single date/encounter**: If the interaction was a single meetup or specific date, only the `start` tag **SHOULD** be included.
+- **Multi-day stay/trip**: If the interaction spanned a duration (e.g. a 5-day guest stay or multi-week road trip), both `start` (check-in / departure) and `end` (check-out / return) tags **SHOULD** be included.
+- **Historical references**: When writing references for past encounters that occurred months or years prior to publication on Nostr, `start` allows clients to correctly display the historical timeframe of the experience rather than relying solely on the event's `created_at` timestamp.
+- If neither `start` nor `end` is present, clients may assume the interaction occurred around the event's `created_at` timestamp.
+
 ### `t` (OPTIONAL)
 Arbitrary trait, label, or topic hashtags describing specific qualities or observations from the interaction:
 ```json

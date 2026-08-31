@@ -1,3 +1,4 @@
+import 'package:intl/intl.dart';
 import 'package:ndk/entities.dart';
 import '../core/constants/nostr_constants.dart';
 
@@ -11,6 +12,8 @@ class InteractionReference {
   final String subjectPubkey;
   final String content;
   final DateTime createdAt;
+  final DateTime? startDate;
+  final DateTime? endDate;
   final List<String> contexts;
   final String? role;
   final String? sentiment;
@@ -25,6 +28,8 @@ class InteractionReference {
     required this.subjectPubkey,
     required this.content,
     required this.createdAt,
+    this.startDate,
+    this.endDate,
     this.contexts = const [],
     this.role,
     this.sentiment,
@@ -50,6 +55,35 @@ class InteractionReference {
 
   /// Returns whether the author was the guest.
   bool get isAuthorGuest => role == NostrConstants.roleGuest;
+
+  /// Formats the real-world interaction dates into a readable string (e.g. "Jun 2024" or "Jun 10 – 15, 2024").
+  String? get formattedInteractionPeriod {
+    if (startDate == null && endDate == null) return null;
+
+    final monthYearFormat = DateFormat('MMM yyyy');
+    final monthDayFormat = DateFormat('MMM d');
+    final fullFormat = DateFormat('MMM d, yyyy');
+
+    if (startDate != null && endDate != null) {
+      if (startDate!.year == endDate!.year) {
+        if (startDate!.month == endDate!.month && startDate!.day == endDate!.day) {
+          return fullFormat.format(startDate!);
+        } else if (startDate!.month == endDate!.month) {
+          return '${monthDayFormat.format(startDate!)} – ${endDate!.day}, ${endDate!.year}';
+        } else {
+          return '${monthDayFormat.format(startDate!)} – ${fullFormat.format(endDate!)}';
+        }
+      } else {
+        return '${fullFormat.format(startDate!)} – ${fullFormat.format(endDate!)}';
+      }
+    }
+
+    if (startDate != null) {
+      return monthYearFormat.format(startDate!);
+    }
+
+    return monthYearFormat.format(endDate!);
+  }
 
   /// Human-readable relationship direction description.
   ///
@@ -85,6 +119,8 @@ class InteractionReference {
     }
 
     String? subjectPubkey;
+    DateTime? startDate;
+    DateTime? endDate;
     final contexts = <String>[];
     final tags = <String>[];
     String? role;
@@ -98,6 +134,16 @@ class InteractionReference {
 
       if (key == NostrConstants.tagP && tag.length > 1) {
         subjectPubkey ??= tag[1]; // First p tag is the primary subject
+      } else if (key == NostrConstants.tagStart && tag.length > 1) {
+        final sec = int.tryParse(tag[1]);
+        if (sec != null && sec > 0) {
+          startDate = DateTime.fromMillisecondsSinceEpoch(sec * 1000);
+        }
+      } else if (key == NostrConstants.tagEnd && tag.length > 1) {
+        final sec = int.tryParse(tag[1]);
+        if (sec != null && sec > 0) {
+          endDate = DateTime.fromMillisecondsSinceEpoch(sec * 1000);
+        }
       } else if (key == NostrConstants.tagContext && tag.length > 1) {
         contexts.add(tag[1]);
       } else if (key == NostrConstants.tagRole && tag.length > 1) {
@@ -126,6 +172,8 @@ class InteractionReference {
       subjectPubkey: subjectPubkey,
       content: event.content,
       createdAt: DateTime.fromMillisecondsSinceEpoch(event.createdAt * 1000),
+      startDate: startDate,
+      endDate: endDate,
       contexts: contexts,
       role: role,
       sentiment: sentiment, // strictly null if missing
@@ -154,6 +202,20 @@ class InteractionReference {
 
     if (sentiment != null && sentiment!.isNotEmpty) {
       eventTags.add([NostrConstants.tagSentiment, sentiment!]);
+    }
+
+    if (startDate != null) {
+      eventTags.add([
+        NostrConstants.tagStart,
+        '${startDate!.millisecondsSinceEpoch ~/ 1000}',
+      ]);
+    }
+
+    if (endDate != null) {
+      eventTags.add([
+        NostrConstants.tagEnd,
+        '${endDate!.millisecondsSinceEpoch ~/ 1000}',
+      ]);
     }
 
     if (associatedAddress != null && associatedAddress!.isNotEmpty) {
@@ -186,6 +248,8 @@ class InteractionReference {
     String? subjectPubkey,
     String? content,
     DateTime? createdAt,
+    DateTime? startDate,
+    DateTime? endDate,
     List<String>? contexts,
     String? role,
     String? sentiment,
@@ -200,6 +264,8 @@ class InteractionReference {
       subjectPubkey: subjectPubkey ?? this.subjectPubkey,
       content: content ?? this.content,
       createdAt: createdAt ?? this.createdAt,
+      startDate: startDate ?? this.startDate,
+      endDate: endDate ?? this.endDate,
       contexts: contexts ?? this.contexts,
       role: role ?? this.role,
       sentiment: sentiment ?? this.sentiment,

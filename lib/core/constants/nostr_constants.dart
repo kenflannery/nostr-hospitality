@@ -47,6 +47,8 @@ class NostrConstants {
   static const String tagContext = 'context';
   static const String tagRole = 'role';
   static const String tagSentiment = 'sentiment';
+  static const String tagStart = 'start';
+  static const String tagEnd = 'end';
 
   // --- Hospitality Conventions (NIP-99) ---
   static const String topicHospitality = 'hospitality';

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import '../../../core/constants/nostr_constants.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/theme/app_theme.dart';
@@ -34,6 +35,8 @@ class _ReferenceComposerScreenState
   String _selectedRole = NostrConstants.roleGuest;
   String? _selectedSentiment = NostrConstants.sentimentPositive;
   String? _associatedAddress;
+  DateTime? _startDate;
+  DateTime? _endDate;
   final List<String> _selectedTags = [];
   bool _isSubmitting = false;
 
@@ -68,13 +71,90 @@ class _ReferenceComposerScreenState
   }
 
   void _addCustomTag() {
-    final text = _tagInputController.text.trim().toLowerCase().replaceAll('#', '');
+    final text =
+        _tagInputController.text.trim().toLowerCase().replaceAll('#', '');
     if (text.isNotEmpty && !_selectedTags.contains(text)) {
       setState(() {
         _selectedTags.add(text);
         _tagInputController.clear();
       });
     }
+  }
+
+  void _pickDate() async {
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.event_rounded),
+                title: const Text('Single Day'),
+                subtitle:
+                    const Text('For single-day meetups or specific dates'),
+                onTap: () => Navigator.of(context).pop('single'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.date_range_rounded),
+                title: const Text('Date Range / Stay Duration'),
+                subtitle: const Text(
+                    'For multi-day stays or trips (e.g. Jun 10 – 15)'),
+                onTap: () => Navigator.of(context).pop('range'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (!mounted || choice == null) return;
+
+    if (choice == 'single') {
+      final picked = await showDatePicker(
+        context: context,
+        initialDate: _startDate ?? DateTime.now(),
+        firstDate: DateTime(1990),
+        lastDate: DateTime.now(),
+      );
+      if (picked != null && mounted) {
+        setState(() {
+          _startDate = picked;
+          _endDate = null;
+        });
+      }
+    } else if (choice == 'range') {
+      final pickedRange = await showDateRangePicker(
+        context: context,
+        firstDate: DateTime(1990),
+        lastDate: DateTime.now(),
+        initialDateRange: (_startDate != null && _endDate != null)
+            ? DateTimeRange(start: _startDate!, end: _endDate!)
+            : null,
+      );
+      if (pickedRange != null && mounted) {
+        setState(() {
+          _startDate = pickedRange.start;
+          _endDate = pickedRange.end;
+        });
+      }
+    }
+  }
+
+  String? get _formattedDateDisplay {
+    if (_startDate == null && _endDate == null) return null;
+    final format = DateFormat('MMM d, yyyy');
+    if (_startDate != null && _endDate != null) {
+      return '${format.format(_startDate!)} – ${format.format(_endDate!)}';
+    }
+    if (_startDate != null) {
+      return format.format(_startDate!);
+    }
+    return format.format(_endDate!);
   }
 
   @override
@@ -116,7 +196,7 @@ class _ReferenceComposerScreenState
               ),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
-                initialValue: _selectedContext,
+                value: _selectedContext,
                 decoration: const InputDecoration(
                   prefixIcon: Icon(Icons.category_outlined),
                 ),
@@ -137,6 +217,70 @@ class _ReferenceComposerScreenState
               ),
               const SizedBox(height: 20),
 
+              // Interaction Date (Optional)
+              Text(
+                'When Did This Interaction Take Place? (Optional)',
+                style: theme.textTheme.titleSmall
+                    ?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Specify the date or duration of your stay, meetup, or collaboration.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 8),
+              if (_startDate != null || _endDate != null)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primaryContainer.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                        color: theme.colorScheme.primary.withOpacity(0.4)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.event_available_rounded,
+                          color: theme.colorScheme.primary, size: 20),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          _formattedDateDisplay ?? '',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: theme.colorScheme.onSurface,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.edit_calendar_rounded, size: 18),
+                        tooltip: 'Change Date',
+                        onPressed: _pickDate,
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded, size: 18),
+                        tooltip: 'Clear Date',
+                        onPressed: () {
+                          setState(() {
+                            _startDate = null;
+                            _endDate = null;
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                )
+              else
+                OutlinedButton.icon(
+                  onPressed: _pickDate,
+                  icon: const Icon(Icons.calendar_today_rounded, size: 18),
+                  label: const Text('Set Interaction Date / Range'),
+                ),
+              const SizedBox(height: 20),
+
               // Author's Role
               Text(
                 'Your Role in the Interaction',
@@ -145,7 +289,7 @@ class _ReferenceComposerScreenState
               ),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
-                initialValue: _selectedRole,
+                value: _selectedRole,
                 decoration: const InputDecoration(
                   prefixIcon: Icon(Icons.badge_outlined),
                 ),
@@ -285,7 +429,7 @@ class _ReferenceComposerScreenState
                   );
                 }).toList(),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
 
               // Custom tag input
               Row(
@@ -294,8 +438,8 @@ class _ReferenceComposerScreenState
                     child: TextField(
                       controller: _tagInputController,
                       decoration: const InputDecoration(
-                        hintText: 'Add custom tag...',
-                        prefixIcon: Icon(Icons.tag_rounded, size: 18),
+                        hintText: 'Add custom trait (e.g. great_cook)...',
+                        prefixText: '#',
                         isDense: true,
                       ),
                       onSubmitted: (_) => _addCustomTag(),
@@ -305,11 +449,11 @@ class _ReferenceComposerScreenState
                   IconButton.filledTonal(
                     onPressed: _addCustomTag,
                     icon: const Icon(Icons.add_rounded),
-                    tooltip: 'Add tag',
+                    tooltip: 'Add Tag',
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
 
               // Associated Hosting Listing Coordinate if any
               if (_associatedAddress != null) ...[
@@ -322,10 +466,10 @@ class _ReferenceComposerScreenState
                   child: Row(
                     children: [
                       Icon(
-                        Icons.link_rounded,
+                        Icons.home_rounded,
                         color: theme.colorScheme.primary,
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 12),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -418,14 +562,16 @@ class _ReferenceComposerScreenState
     final auth = ref.read(authStateProvider).valueOrNull;
     if (auth == null || !auth.isAuthenticated || auth.pubkey == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please authenticate before leaving references')),
+        const SnackBar(
+            content: Text('Please authenticate before leaving references')),
       );
       return;
     }
 
     if (auth.pubkey == widget.subjectPubkey) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('You cannot leave a reference for yourself')),
+        const SnackBar(
+            content: Text('You cannot leave a reference for yourself')),
       );
       return;
     }
@@ -440,6 +586,8 @@ class _ReferenceComposerScreenState
         subjectPubkey: widget.subjectPubkey,
         content: _contentController.text.trim(),
         createdAt: DateTime.now(),
+        startDate: _startDate,
+        endDate: _endDate,
         contexts: [_selectedContext],
         role: _selectedRole,
         sentiment: _selectedSentiment,

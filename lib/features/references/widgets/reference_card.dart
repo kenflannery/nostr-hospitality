@@ -105,6 +105,33 @@ class ReferenceCard extends ConsumerWidget {
                   SentimentBadge(sentiment: reference.sentiment, compact: true),
                 if (reference.role != null)
                   RoleBadge(role: reference.role),
+                if (reference.formattedInteractionPeriod != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.6),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.calendar_today_rounded,
+                          size: 11,
+                          color: theme.colorScheme.onSecondaryContainer,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          reference.formattedInteractionPeriod!,
+                          style: TextStyle(
+                            color: theme.colorScheme.onSecondaryContainer,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 if (reference.contexts.isNotEmpty && !reference.isHospitality)
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),

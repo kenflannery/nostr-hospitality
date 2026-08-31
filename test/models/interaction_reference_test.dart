@@ -191,5 +191,56 @@ void main() {
         'Jordan hosted Alex',
       );
     });
+
+    test('Parses start and end date tags and formats interaction period', () {
+      final startTimestamp = 1718064000; // June 11, 2024
+      final endTimestamp = 1718496000;   // June 16, 2024
+
+      final event = Nip01Event(
+        pubKey: authorHex,
+        kind: 7654,
+        tags: [
+          ['p', subjectHex],
+          ['start', '$startTimestamp'],
+          ['end', '$endTimestamp'],
+        ],
+        content: 'Stayed together for five days.',
+        createdAt: 1719234800,
+      );
+
+      final ref = InteractionReference.fromNip01Event(event);
+      expect(ref, isNotNull);
+      expect(ref!.startDate, DateTime.fromMillisecondsSinceEpoch(startTimestamp * 1000));
+      expect(ref.endDate, DateTime.fromMillisecondsSinceEpoch(endTimestamp * 1000));
+      expect(ref.formattedInteractionPeriod, isNotNull);
+
+      // Serialize back to Nip01Event
+      final serialized = ref.toNip01Event(authorPubkey: authorHex);
+      final startTag = serialized.tags.firstWhere((t) => t[0] == 'start');
+      final endTag = serialized.tags.firstWhere((t) => t[0] == 'end');
+      expect(startTag[1], '$startTimestamp');
+      expect(endTag[1], '$endTimestamp');
+    });
+
+    test('Parses single start date tag and formats as month-year', () {
+      final startTimestamp = 1686830400; // June 15, 2023
+
+      final event = Nip01Event(
+        pubKey: authorHex,
+        kind: 7654,
+        tags: [
+          ['p', subjectHex],
+          ['start', '$startTimestamp'],
+        ],
+        content: 'Met for coffee in June 2023.',
+        createdAt: 1719234800,
+      );
+
+      final ref = InteractionReference.fromNip01Event(event);
+      expect(ref, isNotNull);
+      expect(ref!.startDate, DateTime.fromMillisecondsSinceEpoch(startTimestamp * 1000));
+      expect(ref.endDate, isNull);
+      expect(ref.formattedInteractionPeriod, 'Jun 2023');
+    });
   });
 }
