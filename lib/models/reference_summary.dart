@@ -84,4 +84,7 @@ class ReferenceSummary {
 
   bool get isEmpty => totalCount == 0;
   bool get isNotEmpty => totalCount > 0;
+
+  int get asHostCount => hostedCount;
+  int get asGuestCount => guestCount;
 }

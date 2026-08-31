@@ -74,7 +74,9 @@ void main() {
 
       // Role aggregation
       expect(summary.hostedCount, 4); // 4 guests stayed with this host
+      expect(summary.asHostCount, 4);
       expect(summary.guestCount, 1); // 1 host hosted this user
+      expect(summary.asGuestCount, 1);
       expect(summary.metCount, 1); // 1 meeting context
     });
   });
