@@ -231,6 +231,7 @@ class ListingDetailScreen extends ConsumerWidget {
 
                   // Location and Geohash
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Icon(
                         Icons.location_on_outlined,
@@ -238,33 +239,40 @@ class ListingDetailScreen extends ConsumerWidget {
                         color: theme.colorScheme.primary,
                       ),
                       const SizedBox(width: 4),
-                      Text(
-                        listing.location,
-                        style: theme.textTheme.bodyLarge?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                          fontWeight: FontWeight.w500,
+                      Expanded(
+                        child: Wrap(
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: 8,
+                          runSpacing: 4,
+                          children: [
+                            Text(
+                              listing.location,
+                              style: theme.textTheme.bodyLarge?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            if (listing.privacyGeohash != null)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.primaryContainer.withValues(alpha: 0.4),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  'g: ${listing.privacyGeohash}',
+                                  style: TextStyle(
+                                    fontFamily: 'monospace',
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: theme.colorScheme.primary,
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                       ),
-                      if (listing.privacyGeohash != null) ...[
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.primaryContainer.withValues(alpha: 0.4),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            'g: ${listing.privacyGeohash}',
-                            style: TextStyle(
-                              fontFamily: 'monospace',
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: theme.colorScheme.primary,
-                            ),
-                          ),
-                        ),
-                      ],
-                      const Spacer(),
+                      const SizedBox(width: 8),
                       Text(
                         'Posted ${DateFormatter.formatShort(listing.createdAt)}',
                         style: theme.textTheme.bodySmall?.copyWith(
