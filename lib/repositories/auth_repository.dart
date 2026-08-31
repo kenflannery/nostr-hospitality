@@ -6,11 +6,13 @@ import 'package:ndk/entities.dart';
 class AuthState {
   final String? pubkey;
   final String? npub;
+  final SignerType? signerType;
   final bool isAuthenticated;
 
   const AuthState({
     this.pubkey,
     this.npub,
+    this.signerType,
     this.isAuthenticated = false,
   });
 }
@@ -29,6 +31,7 @@ class AuthRepository {
   AuthState get currentState => AuthState(
         pubkey: _signerService.activePublicKey,
         npub: _signerService.activeNpub,
+        signerType: _signerService.activeSignerType,
         isAuthenticated: _signerService.isAuthenticated,
       );
 
@@ -39,6 +42,8 @@ class AuthRepository {
     }
     return null;
   }
+
+  SignerType? get activeSignerType => _signerService.activeSignerType;
 
   Future<AuthState> initialize() async {
     await _signerService.initialize();
@@ -55,6 +60,20 @@ class AuthRepository {
 
   Future<AuthState> loginWithPrivateKey(String privateKeyHexOrNsec) async {
     await _signerService.loginWithPrivateKey(privateKeyHexOrNsec);
+    _nostrService.updateSigner();
+    await publishRelayLists();
+    return currentState;
+  }
+
+  Future<AuthState> loginWithNip07() async {
+    await _signerService.loginWithNip07();
+    _nostrService.updateSigner();
+    await publishRelayLists();
+    return currentState;
+  }
+
+  Future<AuthState> loginWithNip46(String bunkerUri, {String? explicitUserPubkey}) async {
+    await _signerService.loginWithNip46(bunkerUri, explicitUserPubkey: explicitUserPubkey);
     _nostrService.updateSigner();
     await publishRelayLists();
     return currentState;

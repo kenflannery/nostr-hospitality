@@ -104,6 +104,28 @@ class AuthNotifier extends StateNotifier<AsyncValue<AuthState>> {
     }
   }
 
+  Future<void> loginWithNip07() async {
+    state = const AsyncValue.loading();
+    try {
+      final authState = await _repo.loginWithNip07();
+      state = AsyncValue.data(authState);
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+      rethrow;
+    }
+  }
+
+  Future<void> loginWithNip46(String bunkerUri, {String? explicitUserPubkey}) async {
+    state = const AsyncValue.loading();
+    try {
+      final authState = await _repo.loginWithNip46(bunkerUri, explicitUserPubkey: explicitUserPubkey);
+      state = AsyncValue.data(authState);
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+      rethrow;
+    }
+  }
+
   Future<void> generateNewAccount() async {
     state = const AsyncValue.loading();
     try {

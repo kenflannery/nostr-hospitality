@@ -79,7 +79,7 @@ class NostrService {
     }
   }
 
-  /// Queries events matching filters from the network and relay cache.
+  /// Queries events matching filters from the network and relay cache (closes on EOSE).
   Stream<Nip01Event> queryEvents({
     required List<Filter> filters,
     List<String>? explicitRelays,
@@ -93,6 +93,20 @@ class NostrService {
     );
 
     return response.stream;
+  }
+
+  /// Creates a live, persistent real-time subscription that stays open for new incoming events.
+  NdkResponse liveSubscription({
+    required Filter filter,
+    List<String>? explicitRelays,
+  }) {
+    _ensureInitialized();
+
+    final relays = explicitRelays ?? relayConfig.relays;
+    return _ndk.requests.subscription(
+      filter: filter,
+      explicitRelays: relays,
+    );
   }
 
   /// Signs an unsigned event with the active signer reliably.
