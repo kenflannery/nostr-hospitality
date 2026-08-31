@@ -236,6 +236,18 @@ flutter run -d chrome
 
 ---
 
+## Live Deployment (GitHub Pages)
+
+This repository includes an automated GitHub Actions workflow (`.github/workflows/deploy.yml`) that automatically tests, compiles, and deploys the web client to **GitHub Pages** on every push to `main`.
+
+### To Enable on your GitHub Repository:
+1. Navigate to **Settings** > **Pages** in your GitHub repository.
+2. Under **Build and deployment** > **Source**, select **GitHub Actions**.
+3. Every commit to `main` will automatically build and publish the live web app at:
+   `https://<your-username>.github.io/<your-repo-name>/`
+
+---
+
 ## License
 
 MIT License. Open source and sovereign.
