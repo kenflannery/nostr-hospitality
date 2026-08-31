@@ -66,6 +66,21 @@ class NostrService {
       );
       await _cache.saveUserRelayList(userRelayList);
     }
+
+    final cachedDmRelays = await _cache.loadEvents(
+      pubKeys: [pubkey],
+      kinds: [10050],
+    );
+    if (cachedDmRelays.isEmpty) {
+      final dmRelayEvent = Nip01Event(
+        pubKey: pubkey,
+        kind: 10050,
+        tags: relayConfig.relays.map((r) => ['relay', r]).toList(),
+        content: '',
+        createdAt: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      );
+      await _cache.saveEvent(dmRelayEvent);
+    }
   }
 
   /// Updates NDK login state when user signs in or logs out.
@@ -77,10 +92,14 @@ class NostrService {
       if (signer is Nip46BunkerSigner && signer.delegateSigner == null) {
         final clientPriv = signer.connectionParams.clientPrivateKey ??
             Bip340.generatePrivateKey().privateKey!;
+        final relays = {
+          signer.connectionParams.relayUrl,
+          ...relayConfig.relays,
+        }.toList();
         final conn = BunkerConnection(
           privateKey: clientPriv,
           remotePubkey: signer.connectionParams.remotePubkey,
-          relays: [signer.connectionParams.relayUrl],
+          relays: relays,
         );
         final delegate = _ndk.bunkers.createSigner(conn);
         delegate.cachedPublicKey = signer.getPublicKey();

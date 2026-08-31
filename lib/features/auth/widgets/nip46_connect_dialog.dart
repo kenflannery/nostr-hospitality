@@ -130,7 +130,9 @@ class _Nip46ConnectDialogState extends ConsumerState<Nip46ConnectDialog>
 
     try {
       final user = explicitUserPubkey ?? userOrRemotePubKey;
-      final bunkerUri = 'bunker://$userOrRemotePubKey?relay=$relayUrl&user=$user';
+      final clientKey = _nostrConnect?.keyPair.privateKey;
+      final clientParam = clientKey != null ? '&client=$clientKey' : '';
+      final bunkerUri = 'bunker://$userOrRemotePubKey?relay=$relayUrl&user=$user$clientParam';
       await ref.read(authStateProvider.notifier).loginWithNip46(bunkerUri, explicitUserPubkey: user);
       if (mounted) {
         Navigator.of(context).pop(true);

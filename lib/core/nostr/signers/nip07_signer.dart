@@ -18,6 +18,12 @@ class Nip07Signer implements EventSigner {
     return impl.isNip07Available();
   }
 
+  /// Checks if the connected NIP-07 browser extension supports NIP-44 direct message encryption.
+  static Future<bool> isNip44Supported() async {
+    if (!kIsWeb) return false;
+    return impl.isNip44Supported();
+  }
+
   /// Prompts the browser extension to authorize and return the user's public key.
   static Future<Nip07Signer> connect() async {
     if (!kIsWeb) {

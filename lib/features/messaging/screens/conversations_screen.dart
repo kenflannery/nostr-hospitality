@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/utils/date_formatter.dart';
 import '../../../models/chat_message.dart';
@@ -11,6 +12,9 @@ import 'chat_screen.dart';
 /// Screen listing private NIP-17 conversations.
 class ConversationsScreen extends ConsumerWidget {
   const ConversationsScreen({super.key});
+
+  static const String _soapboxSignerUrl =
+      'https://chromewebstore.google.com/detail/soapbox-signer/nnodjkgakfpkckcnbacpcjbpmlmbihdd';
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -35,6 +39,8 @@ class ConversationsScreen extends ConsumerWidget {
     }
 
     final conversationsAsync = ref.watch(conversationsProvider);
+    final nip44Supported =
+        ref.watch(nip07Nip44SupportedProvider).valueOrNull ?? true;
 
     return Scaffold(
       appBar: AppBar(
@@ -60,6 +66,33 @@ class ConversationsScreen extends ConsumerWidget {
         ),
         data: (conversations) {
           if (conversations.isEmpty) {
+            if (!nip44Supported) {
+              return RefreshIndicator(
+                onRefresh: () async => ref.refresh(conversationsProvider.future),
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  children: [
+                    SizedBox(
+                      height: MediaQuery.of(context).size.height * 0.7,
+                      child: EmptyStateView(
+                        icon: Icons.extension_off_outlined,
+                        title: 'Browser Extension Missing NIP-44',
+                        message:
+                            'Your browser extension does not support modern NIP-44 encryption required for private direct messages (NIP-17).\n\nTo view and send direct messages, we recommend installing Soapbox Signer, or logging in with Amber on mobile / your private key.',
+                        actionLabel: 'Get Soapbox Signer',
+                        onAction: () {
+                          launchUrl(
+                            Uri.parse(_soapboxSignerUrl),
+                            mode: LaunchMode.externalApplication,
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+
             return RefreshIndicator(
               onRefresh: () async => ref.refresh(conversationsProvider.future),
               child: ListView(

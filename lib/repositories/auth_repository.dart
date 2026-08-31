@@ -79,7 +79,11 @@ class AuthRepository {
   Future<AuthState> loginWithNip46(String bunkerUri, {String? explicitUserPubkey}) async {
     await _signerService.loginWithNip46(bunkerUri, explicitUserPubkey: explicitUserPubkey);
     _nostrService.updateSigner();
-    await publishRelayLists();
+    try {
+      await publishRelayLists().timeout(const Duration(seconds: 3));
+    } catch (_) {
+      // Non-critical relay list sync shouldn't block login completion
+    }
     return currentState;
   }
 

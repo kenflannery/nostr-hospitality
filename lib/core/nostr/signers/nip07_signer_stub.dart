@@ -19,3 +19,5 @@ Future<String?> nip44EncryptWithNip07(String plaintext, String recipientPubKey) 
 
 Future<String?> nip44DecryptWithNip07(String ciphertext, String senderPubKey) async =>
     throw UnsupportedError('NIP-07 is only available in web browsers.');
+
+Future<bool> isNip44Supported() async => false;

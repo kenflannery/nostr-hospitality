@@ -128,12 +128,18 @@ Future<String?> nip44EncryptWithNip07(String plaintext, String recipientPubKey) 
 
   try {
     final nostrObj = nostr as JSObject;
-    if (!nostrObj.hasProperty('nip44'.toJS).toDart) return null;
+    if (!nostrObj.hasProperty('nip44'.toJS).toDart) {
+      // ignore: avoid_print
+      print('[NIP-07] Extension does not have nip44 property.');
+      return null;
+    }
     final nip44 = nostrObj.getProperty('nip44'.toJS) as JSObject;
     final promise = nip44.callMethod<JSPromise<JSAny?>>('encrypt'.toJS, recipientPubKey.toJS, plaintext.toJS);
     final res = await promise.toDart;
     return _toDartString(res);
-  } catch (_) {
+  } catch (e) {
+    // ignore: avoid_print
+    print('[NIP-07] nip44.encrypt error: $e');
     return null;
   }
 }
@@ -141,16 +147,43 @@ Future<String?> nip44EncryptWithNip07(String plaintext, String recipientPubKey) 
 Future<String?> nip44DecryptWithNip07(String ciphertext, String senderPubKey) async {
   final win = web.window as JSObject;
   final nostr = win.getProperty('nostr'.toJS);
-  if (nostr == null) return null;
+  if (nostr == null) {
+    // ignore: avoid_print
+    print('[NIP-07] window.nostr is null');
+    return null;
+  }
 
   try {
     final nostrObj = nostr as JSObject;
-    if (!nostrObj.hasProperty('nip44'.toJS).toDart) return null;
+    if (!nostrObj.hasProperty('nip44'.toJS).toDart) {
+      // ignore: avoid_print
+      print('[NIP-07] window.nostr.nip44 property NOT supported by extension');
+      return null;
+    }
     final nip44 = nostrObj.getProperty('nip44'.toJS) as JSObject;
     final promise = nip44.callMethod<JSPromise<JSAny?>>('decrypt'.toJS, senderPubKey.toJS, ciphertext.toJS);
     final res = await promise.toDart;
-    return _toDartString(res);
-  } catch (_) {
+    final str = _toDartString(res);
+    // ignore: avoid_print
+    print('[NIP-07] nip44.decrypt succeeded for sender $senderPubKey');
+    return str;
+  } catch (e) {
+    // ignore: avoid_print
+    print('[NIP-07] nip44.decrypt error: $e');
     return null;
+  }
+}
+
+Future<bool> isNip44Supported() async {
+  try {
+    final win = web.window as JSObject;
+    if (!win.hasProperty('nostr'.toJS).toDart) return false;
+    final nostr = win.getProperty('nostr'.toJS);
+    if (nostr == null) return false;
+    final nostrObj = nostr as JSObject;
+    return nostrObj.hasProperty('nip44'.toJS).toDart &&
+        nostrObj.getProperty('nip44'.toJS) != null;
+  } catch (_) {
+    return false;
   }
 }

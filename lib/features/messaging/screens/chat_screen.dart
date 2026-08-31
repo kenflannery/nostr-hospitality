@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/utils/date_formatter.dart';
 import '../../../models/chat_message.dart';
@@ -185,6 +186,33 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       ),
           ),
 
+          if (!(ref.watch(nip07Nip44SupportedProvider).valueOrNull ?? true))
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              color: theme.colorScheme.errorContainer.withValues(alpha: 0.4),
+              child: Row(
+                children: [
+                  Icon(Icons.warning_amber_rounded, size: 20, color: theme.colorScheme.error),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Your browser extension lacks NIP-44 encryption.',
+                      style: TextStyle(fontSize: 12, color: theme.colorScheme.onErrorContainer),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      launchUrl(
+                        Uri.parse('https://chromewebstore.google.com/detail/soapbox-signer/nnodjkgakfpkckcnbacpcjbpmlmbihdd'),
+                        mode: LaunchMode.externalApplication,
+                      );
+                    },
+                    child: const Text('Get Soapbox'),
+                  ),
+                ],
+              ),
+            ),
+
           // Message input bar
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -202,9 +230,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   Expanded(
                     child: TextField(
                       controller: _messageController,
+                      enabled: ref.watch(nip07Nip44SupportedProvider).valueOrNull ?? true,
                       textCapitalization: TextCapitalization.sentences,
                       decoration: InputDecoration(
-                        hintText: 'Type a message...',
+                        hintText: (ref.watch(nip07Nip44SupportedProvider).valueOrNull ?? true)
+                            ? 'Type a message...'
+                            : 'NIP-44 extension required to send messages',
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(24),
@@ -218,7 +249,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   ),
                   const SizedBox(width: 8),
                   IconButton.filled(
-                    onPressed: _isSending ? null : _sendMessage,
+                    onPressed: (_isSending || !(ref.watch(nip07Nip44SupportedProvider).valueOrNull ?? true))
+                        ? null
+                        : _sendMessage,
                     icon: _isSending
                         ? const SizedBox(
                             width: 18,

@@ -156,7 +156,13 @@ class Nip46BunkerSigner implements EventSigner {
     if (_delegateSigner != null) {
       return _rpcLock.run(() async {
         await Future.delayed(const Duration(milliseconds: 100));
-        return _delegateSigner!.sign(event);
+        try {
+          return await _delegateSigner!.sign(event).timeout(const Duration(seconds: 8));
+        } catch (e) {
+          // ignore: avoid_print
+          print('[NIP-46] sign error or timeout: $e');
+          return event;
+        }
       });
     }
     return event;
@@ -168,8 +174,14 @@ class Nip46BunkerSigner implements EventSigner {
     if (_delegateSigner != null) {
       return _rpcLock.run(() async {
         await Future.delayed(const Duration(milliseconds: 100));
-        // ignore: deprecated_member_use
-        return _delegateSigner!.encrypt(plaintext, recipientPubKey);
+        try {
+          // ignore: deprecated_member_use
+          return await _delegateSigner!.encrypt(plaintext, recipientPubKey).timeout(const Duration(seconds: 8));
+        } catch (e) {
+          // ignore: avoid_print
+          print('[NIP-46] encrypt error or timeout: $e');
+          return null;
+        }
       });
     }
     return null;
@@ -181,8 +193,14 @@ class Nip46BunkerSigner implements EventSigner {
     if (_delegateSigner != null) {
       return _rpcLock.run(() async {
         await Future.delayed(const Duration(milliseconds: 100));
-        // ignore: deprecated_member_use
-        return _delegateSigner!.decrypt(cipherText, id);
+        try {
+          // ignore: deprecated_member_use
+          return await _delegateSigner!.decrypt(cipherText, id).timeout(const Duration(seconds: 8));
+        } catch (e) {
+          // ignore: avoid_print
+          print('[NIP-46] decrypt error or timeout: $e');
+          return null;
+        }
       });
     }
     return null;
@@ -193,7 +211,15 @@ class Nip46BunkerSigner implements EventSigner {
     if (_delegateSigner != null) {
       return _rpcLock.run(() async {
         await Future.delayed(const Duration(milliseconds: 100));
-        return _delegateSigner!.encryptNip44(plaintext: plaintext, recipientPubKey: recipientPubKey);
+        try {
+          return await _delegateSigner!
+              .encryptNip44(plaintext: plaintext, recipientPubKey: recipientPubKey)
+              .timeout(const Duration(seconds: 8));
+        } catch (e) {
+          // ignore: avoid_print
+          print('[NIP-46] encryptNip44 error or timeout: $e');
+          return null;
+        }
       });
     }
     return null;
@@ -205,7 +231,20 @@ class Nip46BunkerSigner implements EventSigner {
       return _rpcLock.run(() async {
         // Pacing delay (180ms) prevents Amber from broadcasting too fast and hitting relay rate limits
         await Future.delayed(const Duration(milliseconds: 180));
-        return _delegateSigner!.decryptNip44(ciphertext: ciphertext, senderPubKey: senderPubKey);
+        try {
+          // ignore: avoid_print
+          print('[NIP-46] Sending decryptNip44 RPC for sender $senderPubKey');
+          final result = await _delegateSigner!
+              .decryptNip44(ciphertext: ciphertext, senderPubKey: senderPubKey)
+              .timeout(const Duration(seconds: 8));
+          // ignore: avoid_print
+          print('[NIP-46] decryptNip44 RPC succeeded (length: ${result?.length})');
+          return result;
+        } catch (e) {
+          // ignore: avoid_print
+          print('[NIP-46] decryptNip44 error or timeout: $e');
+          return null;
+        }
       });
     }
     return null;

@@ -14,6 +14,7 @@ import '../../repositories/reference_repository.dart';
 import '../nostr/nostr_service.dart';
 import '../nostr/relay_config.dart';
 import '../nostr/signer_service.dart';
+import '../nostr/signers/nip07_signer.dart';
 import '../services/media_upload_service.dart';
 
 // --- Base Infrastructure Providers ---
@@ -232,5 +233,15 @@ final conversationsProvider =
     return [];
   }
   final repo = ref.watch(messageRepositoryProvider);
-  return repo.loadConversations(forceRefresh: true);
+  return repo.loadConversations(forceRefresh: false);
+});
+
+/// Checks if the connected NIP-07 browser extension supports NIP-44 encryption
+final nip07Nip44SupportedProvider =
+    FutureProvider.autoDispose<bool>((ref) async {
+  final auth = ref.watch(authStateProvider).valueOrNull;
+  if (auth == null || auth.signerType != SignerType.nip07) {
+    return true;
+  }
+  return Nip07Signer.isNip44Supported();
 });
