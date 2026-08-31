@@ -27,7 +27,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
   final FocusNode _searchFocusNode = FocusNode();
 
   bool _isMapView = true;
-  HospitalityListing? _selectedMapListing;
+  _ListingCluster? _selectedCluster;
 
   List<CitySearchResult> _citySuggestions = [];
   bool _isSearchingCities = false;
@@ -130,7 +130,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
             onPressed: () {
               setState(() {
                 _isMapView = !_isMapView;
-                _selectedMapListing = null;
+                _selectedCluster = null;
                 _citySuggestions = [];
               });
             },
@@ -146,7 +146,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
           ),
         ],
       ),
-      floatingActionButton: _selectedMapListing != null
+      floatingActionButton: _selectedCluster != null
           ? null
           : FloatingActionButton.extended(
               onPressed: () {
@@ -358,16 +358,67 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
     );
   }
 
+  List<_ListingCluster> _buildClusters(List<HospitalityListing> listings) {
+    final Map<String, List<HospitalityListing>> groups = {};
+    final Map<String, LatLng> centers = {};
+    final Map<String, String> geohashes = {};
+
+    for (final listing in listings) {
+      if (!listing.hasLocationCoordinates) continue;
+      // Group by 4-char geohash or rounded coordinates
+      final key = (listing.geohash != null && listing.geohash!.isNotEmpty)
+          ? (listing.geohash!.length > 4 ? listing.geohash!.substring(0, 4).toLowerCase() : listing.geohash!.toLowerCase())
+          : '${listing.effectiveLatitude!.toStringAsFixed(3)},${listing.effectiveLongitude!.toStringAsFixed(3)}';
+
+      groups.putIfAbsent(key, () => []).add(listing);
+      centers.putIfAbsent(key, () => LatLng(listing.effectiveLatitude!, listing.effectiveLongitude!));
+      if (listing.geohash != null && listing.geohash!.isNotEmpty) {
+        geohashes.putIfAbsent(key, () => listing.geohash!);
+      }
+    }
+
+    return groups.entries.map((e) {
+      return _ListingCluster(
+        id: e.key,
+        geohash: geohashes[e.key],
+        center: centers[e.key]!,
+        listings: e.value,
+      );
+    }).toList();
+  }
+
   Widget _buildMapView(BuildContext context, ThemeData theme, List<HospitalityListing> listings) {
-    final mapListings = listings.where((l) => l.hasLocationCoordinates).toList();
+    final clusters = _buildClusters(listings);
 
     LatLng initialCenter = const LatLng(47.6062, -122.3321); // Default center
     double initialZoom = 9.0;
 
-    if (mapListings.isNotEmpty) {
-      final first = mapListings.first;
-      initialCenter = LatLng(first.effectiveLatitude!, first.effectiveLongitude!);
-      initialZoom = mapListings.length == 1 ? 9.0 : 4.0;
+    if (clusters.isNotEmpty) {
+      final first = clusters.first;
+      initialCenter = first.center;
+      initialZoom = clusters.length == 1 ? 9.0 : 4.0;
+    }
+
+    // Generate geohash bounding box polygon for selected cluster
+    final polygons = <Polygon>[];
+    if (_selectedCluster != null) {
+      final geohash = _selectedCluster!.geohash ??
+          GeohashHelper.encode(
+            _selectedCluster!.center.latitude,
+            _selectedCluster!.center.longitude,
+            precision: 4,
+          );
+      final corners = GeohashHelper.getBoundingBoxCorners(geohash);
+      if (corners != null && corners.length >= 4) {
+        polygons.add(
+          Polygon(
+            points: corners.map((c) => LatLng(c.lat, c.lon)).toList(),
+            color: theme.colorScheme.primary.withValues(alpha: 0.14),
+            borderColor: theme.colorScheme.primary.withValues(alpha: 0.55),
+            borderStrokeWidth: 2.0,
+          ),
+        );
+      }
     }
 
     return Stack(
@@ -380,8 +431,8 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
             minZoom: 1.5,
             maxZoom: 18.0,
             onTap: (_, __) {
-              if (_selectedMapListing != null) {
-                setState(() => _selectedMapListing = null);
+              if (_selectedCluster != null) {
+                setState(() => _selectedCluster = null);
               }
               if (_citySuggestions.isNotEmpty) {
                 setState(() => _citySuggestions = []);
@@ -394,49 +445,95 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
               subdomains: MapTileConfig.subdomains,
               userAgentPackageName: MapTileConfig.userAgentPackageName,
             ),
+            if (polygons.isNotEmpty)
+              PolygonLayer(
+                polygons: polygons,
+              ),
             MarkerLayer(
-              markers: mapListings.map((listing) {
-                final isSelected = _selectedMapListing?.addressCoordinate == listing.addressCoordinate;
+              markers: clusters.map((cluster) {
+                final isSelected = _selectedCluster?.id == cluster.id;
+                final isMulti = cluster.listings.length > 1;
+
+                final markerWidth = isMulti ? (isSelected ? 62.0 : 50.0) : (isSelected ? 54.0 : 44.0);
+                final markerHeight = markerWidth;
 
                 return Marker(
-                  point: LatLng(listing.effectiveLatitude!, listing.effectiveLongitude!),
-                  width: isSelected ? 56 : 44,
-                  height: isSelected ? 56 : 44,
+                  point: cluster.center,
+                  width: markerWidth,
+                  height: markerHeight,
                   child: GestureDetector(
                     onTap: () {
                       setState(() {
-                        _selectedMapListing = listing;
+                        _selectedCluster = cluster;
                         _citySuggestions = [];
                       });
                       _mapController.move(
-                        LatLng(listing.effectiveLatitude!, listing.effectiveLongitude!),
+                        cluster.center,
                         _mapController.camera.zoom < 6 ? 8.0 : _mapController.camera.zoom,
                       );
                     },
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      decoration: BoxDecoration(
-                        color: isSelected ? theme.colorScheme.primary : theme.colorScheme.surface,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.25),
-                            blurRadius: isSelected ? 8 : 4,
-                            offset: const Offset(0, 2),
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        // Main Marker Pin
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          width: markerWidth,
+                          height: markerHeight,
+                          decoration: BoxDecoration(
+                            color: isSelected ? theme.colorScheme.primary : theme.colorScheme.surface,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.28),
+                                blurRadius: isSelected ? 8 : 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                            border: Border.all(
+                              color: isSelected ? Colors.white : theme.colorScheme.primary,
+                              width: isMulti ? 3.0 : 2.5,
+                            ),
                           ),
-                        ],
-                        border: Border.all(
-                          color: isSelected ? Colors.white : theme.colorScheme.primary,
-                          width: 2.5,
+                          child: Center(
+                            child: Icon(
+                              isMulti ? Icons.home_work_rounded : Icons.roofing_rounded,
+                              size: isSelected ? 26 : 20,
+                              color: isSelected ? Colors.white : theme.colorScheme.primary,
+                            ),
+                          ),
                         ),
-                      ),
-                      child: Center(
-                        child: Icon(
-                          Icons.roofing_rounded,
-                          size: isSelected ? 26 : 20,
-                          color: isSelected ? Colors.white : theme.colorScheme.primary,
-                        ),
-                      ),
+
+                        // Count Badge for Clusters (> 1 host)
+                        if (isMulti)
+                          Positioned(
+                            top: -2,
+                            right: -2,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: isSelected ? theme.colorScheme.tertiary : theme.colorScheme.primary,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: Colors.white, width: 1.5),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.3),
+                                    blurRadius: 3,
+                                    offset: const Offset(0, 1),
+                                  ),
+                                ],
+                              ),
+                              child: Text(
+                                '${cluster.listings.length}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                 );
@@ -445,15 +542,16 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
           ],
         ),
 
-        // Selected Listing Overlay Bottom Card
-        if (_selectedMapListing != null)
+        // Selected Listing Overlay Bottom Card (Single or Multi-Host Carousel)
+        if (_selectedCluster != null)
           Positioned(
             left: 16,
             right: 16,
             bottom: 16,
-            child: _MapListingPreviewCard(
-              listing: _selectedMapListing!,
-              onClose: () => setState(() => _selectedMapListing = null),
+            child: _MapClusterPreviewCard(
+              key: ValueKey(_selectedCluster!.id),
+              cluster: _selectedCluster!,
+              onClose: () => setState(() => _selectedCluster = null),
             ),
           ),
       ],
@@ -461,92 +559,258 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
   }
 }
 
-class _MapListingPreviewCard extends ConsumerWidget {
-  final HospitalityListing listing;
+/// Represents a cluster of listings sharing the same geohash or coordinates.
+class _ListingCluster {
+  final String id;
+  final String? geohash;
+  final LatLng center;
+  final List<HospitalityListing> listings;
+
+  const _ListingCluster({
+    required this.id,
+    this.geohash,
+    required this.center,
+    required this.listings,
+  });
+}
+
+/// Bottom preview card supporting single listing or multi-host swipeable carousel.
+class _MapClusterPreviewCard extends ConsumerStatefulWidget {
+  final _ListingCluster cluster;
   final VoidCallback onClose;
 
-  const _MapListingPreviewCard({
-    required this.listing,
+  const _MapClusterPreviewCard({
+    super.key,
+    required this.cluster,
     required this.onClose,
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_MapClusterPreviewCard> createState() => _MapClusterPreviewCardState();
+}
+
+class _MapClusterPreviewCardState extends ConsumerState<_MapClusterPreviewCard> {
+  late PageController _pageController;
+  int _currentPage = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final authorProfile = ref.watch(userProfileProvider(listing.authorPubkey)).valueOrNull;
+    final isMulti = widget.cluster.listings.length > 1;
 
     return Card(
       elevation: 8,
       shadowColor: Colors.black.withValues(alpha: 0.3),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: InkWell(
-        onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => ListingDetailScreen(listing: listing),
-            ),
-          );
-        },
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(14.0),
-          child: Row(
-            children: [
-              UserAvatar(
-                imageUrl: authorProfile?.picture,
-                nameOrPubkey: authorProfile?.bestName ?? listing.authorPubkey,
-                radius: 24,
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      listing.title,
-                      style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 12.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header with Host Count and Pager if multi-host
+            if (isMulti) ...[
+              Row(
+                children: [
+                  Icon(Icons.hub_outlined, size: 16, color: theme.colorScheme.primary),
+                  const SizedBox(width: 6),
+                  Text(
+                    '${widget.cluster.listings.length} Hosts in Area',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: theme.colorScheme.primary,
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      listing.location,
-                      style: TextStyle(
-                        color: theme.colorScheme.primary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
+                  ),
+                  const Spacer(),
+                  // Previous Button
+                  IconButton(
+                    icon: const Icon(Icons.chevron_left_rounded, size: 22),
+                    visualDensity: VisualDensity.compact,
+                    tooltip: 'Previous Host',
+                    onPressed: _currentPage > 0
+                        ? () {
+                            _pageController.previousPage(
+                              duration: const Duration(milliseconds: 250),
+                              curve: Curves.easeInOut,
+                            );
+                          }
+                        : null,
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '${_currentPage + 1} of ${widget.cluster.listings.length}',
+                      style: theme.textTheme.labelSmall?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  // Next Button
+                  IconButton(
+                    icon: const Icon(Icons.chevron_right_rounded, size: 22),
+                    visualDensity: VisualDensity.compact,
+                    tooltip: 'Next Host',
+                    onPressed: _currentPage < widget.cluster.listings.length - 1
+                        ? () {
+                            _pageController.nextPage(
+                              duration: const Duration(milliseconds: 250),
+                              curve: Curves.easeInOut,
+                            );
+                          }
+                        : null,
+                  ),
+                  const SizedBox(width: 2),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, size: 18),
+                    visualDensity: VisualDensity.compact,
+                    tooltip: 'Dismiss',
+                    onPressed: widget.onClose,
+                  ),
+                ],
+              ),
+              const Divider(height: 12),
+            ],
+
+            // Content: Single or PageView
+            if (!isMulti)
+              _buildListingRow(context, theme, widget.cluster.listings.first, showClose: true)
+            else
+              SizedBox(
+                height: 76,
+                child: PageView.builder(
+                  controller: _pageController,
+                  physics: const BouncingScrollPhysics(),
+                  onPageChanged: (idx) => setState(() => _currentPage = idx),
+                  itemCount: widget.cluster.listings.length,
+                  itemBuilder: (context, index) {
+                    return _buildListingRow(
+                      context,
+                      theme,
+                      widget.cluster.listings[index],
+                      showClose: false,
+                    );
+                  },
+                ),
+              ),
+
+            // Dot indicators for multi-host clusters (Clickable)
+            if (isMulti && widget.cluster.listings.length <= 8) ...[
+              const SizedBox(height: 6),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(widget.cluster.listings.length, (idx) {
+                  final isActive = idx == _currentPage;
+                  return GestureDetector(
+                    onTap: () {
+                      _pageController.animateToPage(
+                        idx,
+                        duration: const Duration(milliseconds: 250),
+                        curve: Curves.easeInOut,
+                      );
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        width: isActive ? 18 : 7,
+                        height: 7,
+                        decoration: BoxDecoration(
+                          color: isActive ? theme.colorScheme.primary : theme.colorScheme.outlineVariant,
+                          borderRadius: BorderRadius.circular(3.5),
+                        ),
                       ),
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              FilledButton.tonalIcon(
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => ListingDetailScreen(listing: listing),
-                    ),
                   );
-                },
-                icon: const Icon(Icons.arrow_forward_rounded, size: 16),
-                label: const Text('View'),
-                style: FilledButton.styleFrom(
-                  visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                ),
+                }),
               ),
-              const SizedBox(width: 4),
-              IconButton(
-                icon: const Icon(Icons.close_rounded, size: 20),
-                tooltip: 'Dismiss',
-                onPressed: onClose,
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildListingRow(
+    BuildContext context,
+    ThemeData theme,
+    HospitalityListing listing, {
+    required bool showClose,
+  }) {
+    final authorProfile = ref.watch(userProfileProvider(listing.authorPubkey)).valueOrNull;
+
+    return Row(
+      children: [
+        UserAvatar(
+          imageUrl: authorProfile?.picture,
+          nameOrPubkey: authorProfile?.bestName ?? listing.authorPubkey,
+          radius: 22,
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                listing.title,
+                style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 2),
+              Text(
+                '${authorProfile?.bestName ?? "Host"} • ${listing.location}',
+                style: TextStyle(
+                  color: theme.colorScheme.primary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),
         ),
-      ),
+        const SizedBox(width: 8),
+        FilledButton.tonalIcon(
+          onPressed: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => ListingDetailScreen(listing: listing),
+              ),
+            );
+          },
+          icon: const Icon(Icons.arrow_forward_rounded, size: 16),
+          label: const Text('View'),
+          style: FilledButton.styleFrom(
+            visualDensity: VisualDensity.compact,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          ),
+        ),
+        if (showClose) ...[
+          const SizedBox(width: 4),
+          IconButton(
+            icon: const Icon(Icons.close_rounded, size: 20),
+            tooltip: 'Dismiss',
+            onPressed: widget.onClose,
+          ),
+        ],
+      ],
     );
   }
 }
