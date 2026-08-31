@@ -353,6 +353,9 @@ class _AboutPageState extends State<AboutPage>
     ["context", "hospitality"],
     ["role", "guest"],
     ["sentiment", "positive"],
+    ["t", "communicative"],
+    ["t", "clean"],
+    ["t", "inspiring"],
     ["a", "30402:<host-pubkey-hex>:<listing-d-tag>"]
   ]
 }''',
@@ -363,6 +366,7 @@ class _AboutPageState extends State<AboutPage>
               '`context` (OPTIONAL) - Nature of interaction: `hospitality`, `meeting`, `travel`, `transaction`, `service`, `work_exchange`, `other` (default: `hospitality`)',
               '`role` (OPTIONAL) - Author\'s role: `host`, `guest`, `traveler`, `buyer`, `seller`, `customer`, `provider`, `other`',
               '`sentiment` (OPTIONAL) - Coarse assessment: `positive`, `neutral`, `negative`. NOTE: Absence of sentiment MUST remain null and NOT defaulted to neutral',
+              '`t` (OPTIONAL) - Arbitrary interaction trait and label hashtags (`["t", "communicative"]`, `["t", "clean"]`, `["t", "prompt"]`)',
               '`a` (OPTIONAL) - Addressable coordinate of associated object (e.g. `30402:<pubkey>:<d-tag>`)',
               '`e` (OPTIONAL) - Event ID of a specific immutable event associated with the interaction',
             ],

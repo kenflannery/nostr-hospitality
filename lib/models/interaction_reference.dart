@@ -16,6 +16,7 @@ class InteractionReference {
   final String? sentiment;
   final String? associatedAddress; // "30402:<pubkey>:<d-tag>"
   final String? associatedEventId;
+  final List<String> tags; // Arbitrary interaction labels/traits (e.g. "communicative", "clean", "inspiring")
   final List<List<String>> rawTags;
 
   const InteractionReference({
@@ -29,6 +30,7 @@ class InteractionReference {
     this.sentiment,
     this.associatedAddress,
     this.associatedEventId,
+    this.tags = const [],
     this.rawTags = const [],
   });
 
@@ -84,6 +86,7 @@ class InteractionReference {
 
     String? subjectPubkey;
     final contexts = <String>[];
+    final tags = <String>[];
     String? role;
     String? sentiment;
     String? associatedAddress;
@@ -105,6 +108,11 @@ class InteractionReference {
         associatedAddress ??= tag[1];
       } else if (key == NostrConstants.tagE && tag.length > 1) {
         associatedEventId ??= tag[1];
+      } else if (key == NostrConstants.tagT && tag.length > 1) {
+        final t = tag[1].trim().toLowerCase();
+        if (t.isNotEmpty && !tags.contains(t)) {
+          tags.add(t);
+        }
       }
     }
 
@@ -123,42 +131,50 @@ class InteractionReference {
       sentiment: sentiment, // strictly null if missing
       associatedAddress: associatedAddress,
       associatedEventId: associatedEventId,
+      tags: tags,
       rawTags: event.tags,
     );
   }
 
   /// Converts this draft reference into an unsigned [Nip01Event].
   Nip01Event toNip01Event({required String authorPubkey}) {
-    final tags = <List<String>>[
+    final eventTags = <List<String>>[
       [NostrConstants.tagP, subjectPubkey],
     ];
 
     for (final ctx in contexts) {
       if (ctx.isNotEmpty) {
-        tags.add([NostrConstants.tagContext, ctx]);
+        eventTags.add([NostrConstants.tagContext, ctx]);
       }
     }
 
     if (role != null && role!.isNotEmpty) {
-      tags.add([NostrConstants.tagRole, role!]);
+      eventTags.add([NostrConstants.tagRole, role!]);
     }
 
     if (sentiment != null && sentiment!.isNotEmpty) {
-      tags.add([NostrConstants.tagSentiment, sentiment!]);
+      eventTags.add([NostrConstants.tagSentiment, sentiment!]);
     }
 
     if (associatedAddress != null && associatedAddress!.isNotEmpty) {
-      tags.add([NostrConstants.tagA, associatedAddress!]);
+      eventTags.add([NostrConstants.tagA, associatedAddress!]);
     }
 
     if (associatedEventId != null && associatedEventId!.isNotEmpty) {
-      tags.add([NostrConstants.tagE, associatedEventId!]);
+      eventTags.add([NostrConstants.tagE, associatedEventId!]);
+    }
+
+    for (final t in tags) {
+      final clean = t.trim().toLowerCase();
+      if (clean.isNotEmpty) {
+        eventTags.add([NostrConstants.tagT, clean]);
+      }
     }
 
     return Nip01Event(
       pubKey: authorPubkey,
       kind: NostrConstants.interactionReferenceKind,
-      tags: tags,
+      tags: eventTags,
       content: content,
       createdAt: createdAt.millisecondsSinceEpoch ~/ 1000,
     );
@@ -175,6 +191,7 @@ class InteractionReference {
     String? sentiment,
     String? associatedAddress,
     String? associatedEventId,
+    List<String>? tags,
     List<List<String>>? rawTags,
   }) {
     return InteractionReference(
@@ -188,6 +205,7 @@ class InteractionReference {
       sentiment: sentiment ?? this.sentiment,
       associatedAddress: associatedAddress ?? this.associatedAddress,
       associatedEventId: associatedEventId ?? this.associatedEventId,
+      tags: tags ?? this.tags,
       rawTags: rawTags ?? this.rawTags,
     );
   }

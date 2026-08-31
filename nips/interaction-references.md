@@ -33,6 +33,9 @@ The event's `.content` contains the free-form reference statement written by the
     ["context", "hospitality"],
     ["role", "guest"],
     ["sentiment", "positive"],
+    ["t", "communicative"],
+    ["t", "clean"],
+    ["t", "great_cook"],
     ["a", "30402:<host-pubkey-hex>:<listing-d-tag>"]
   ],
   "created_at": 1719234800
@@ -89,7 +92,15 @@ Allowed values:
 - `negative`
 
 > **CRITICAL RULE ON SENTIMENT NULLABILITY**:  
-> The absence of a `sentiment` tag **MUST** remain `null` (unspecified). Clients **MUST NOT** default missing sentiment to `neutral`.
+### `t` (OPTIONAL)
+Arbitrary trait, label, or topic hashtags describing specific qualities or observations from the interaction:
+```json
+["t", "communicative"],
+["t", "inspiring"],
+["t", "clean"],
+["t", "respectful"],
+["t", "prompt"]
+```
 
 ### `a` and `e` (OPTIONAL)
 - `a`: Addressable coordinate referencing an associated listing or object (e.g. `["a", "30402:<pubkey>:<d-tag>"]`).

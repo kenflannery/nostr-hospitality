@@ -133,6 +133,43 @@ class ReferenceCard extends ConsumerWidget {
               ),
             ),
 
+            // Interaction trait tags (t tags)
+            if (reference.tags.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                children: reference.tags.map((tag) {
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.tag_rounded,
+                          size: 12,
+                          color: theme.colorScheme.primary,
+                        ),
+                        const SizedBox(width: 3),
+                        Text(
+                          tag,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+
             // Associated NIP-99 listing chip if present
             if (reference.associatedAddress != null &&
                 reference.associatedAddress!.isNotEmpty) ...[

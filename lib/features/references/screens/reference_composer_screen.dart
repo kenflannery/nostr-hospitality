@@ -28,12 +28,29 @@ class _ReferenceComposerScreenState
     extends ConsumerState<ReferenceComposerScreen> {
   final _formKey = GlobalKey<FormState>();
   final _contentController = TextEditingController();
+  final _tagInputController = TextEditingController();
 
   String _selectedContext = NostrConstants.contextHospitality;
   String _selectedRole = NostrConstants.roleGuest;
   String? _selectedSentiment = NostrConstants.sentimentPositive;
   String? _associatedAddress;
+  final List<String> _selectedTags = [];
   bool _isSubmitting = false;
+
+  static const List<String> _suggestedTags = [
+    'communicative',
+    'inspiring',
+    'prompt',
+    'respectful',
+    'clean',
+    'friendly',
+    'flexible',
+    'generous',
+    'reliable',
+    'great_cook',
+    'punctual',
+    'easygoing',
+  ];
 
   @override
   void initState() {
@@ -46,7 +63,18 @@ class _ReferenceComposerScreenState
   @override
   void dispose() {
     _contentController.dispose();
+    _tagInputController.dispose();
     super.dispose();
+  }
+
+  void _addCustomTag() {
+    final text = _tagInputController.text.trim().toLowerCase().replaceAll('#', '');
+    if (text.isNotEmpty && !_selectedTags.contains(text)) {
+      setState(() {
+        _selectedTags.add(text);
+        _tagInputController.clear();
+      });
+    }
   }
 
   @override
@@ -203,6 +231,86 @@ class _ReferenceComposerScreenState
               ),
               const SizedBox(height: 20),
 
+              // Interaction Tags & Traits (t tags)
+              Text(
+                'Interaction Tags & Traits (Optional)',
+                style: theme.textTheme.titleSmall
+                    ?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Highlight specific qualities of the interaction (e.g. communicative, clean, inspiring).',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 8),
+
+              // Selected Tags
+              if (_selectedTags.isNotEmpty) ...[
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: _selectedTags.map((tag) {
+                    return Chip(
+                      label: Text('#$tag'),
+                      deleteIcon: const Icon(Icons.close_rounded, size: 16),
+                      onDeleted: () {
+                        setState(() => _selectedTags.remove(tag));
+                      },
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 8),
+              ],
+
+              // Suggested Quick Tags
+              Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                children: _suggestedTags.map((tag) {
+                  final isAdded = _selectedTags.contains(tag);
+                  return FilterChip(
+                    label: Text(tag),
+                    selected: isAdded,
+                    onSelected: (selected) {
+                      setState(() {
+                        if (selected) {
+                          _selectedTags.add(tag);
+                        } else {
+                          _selectedTags.remove(tag);
+                        }
+                      });
+                    },
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 10),
+
+              // Custom tag input
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _tagInputController,
+                      decoration: const InputDecoration(
+                        hintText: 'Add custom tag...',
+                        prefixIcon: Icon(Icons.tag_rounded, size: 18),
+                        isDense: true,
+                      ),
+                      onSubmitted: (_) => _addCustomTag(),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton.filledTonal(
+                    onPressed: _addCustomTag,
+                    icon: const Icon(Icons.add_rounded),
+                    tooltip: 'Add tag',
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
               // Associated Hosting Listing Coordinate if any
               if (_associatedAddress != null) ...[
                 Container(
@@ -336,6 +444,7 @@ class _ReferenceComposerScreenState
         role: _selectedRole,
         sentiment: _selectedSentiment,
         associatedAddress: _associatedAddress,
+        tags: _selectedTags,
       );
       await repo.publishReference(draft);
 

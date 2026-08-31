@@ -18,6 +18,9 @@ void main() {
           ['context', 'hospitality'],
           ['role', 'guest'],
           ['sentiment', 'positive'],
+          ['t', 'communicative'],
+          ['t', 'clean'],
+          ['t', 'inspiring'],
           ['a', listingCoord],
           ['e', 'e0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'],
         ],
@@ -34,6 +37,7 @@ void main() {
       expect(ref.contexts, ['hospitality']);
       expect(ref.role, 'guest');
       expect(ref.sentiment, 'positive');
+      expect(ref.tags, ['communicative', 'clean', 'inspiring']);
       expect(ref.isPositive, true);
       expect(ref.isNeutral, false);
       expect(ref.isNegative, false);
@@ -140,6 +144,7 @@ void main() {
         role: 'guest',
         sentiment: 'positive',
         associatedAddress: listingCoord,
+        tags: const ['communicative', 'clean'],
       );
 
       final event = ref.toNip01Event(authorPubkey: authorHex);
@@ -154,6 +159,9 @@ void main() {
       final aTags = event.tags.where((t) => t.isNotEmpty && t[0] == 'a').toList();
       expect(aTags.length, 1);
       expect(aTags.first[1], listingCoord);
+
+      final tTags = event.tags.where((t) => t.isNotEmpty && t[0] == 't').map((t) => t[1]).toList();
+      expect(tTags, ['communicative', 'clean']);
     });
 
     test('Human-readable relationship direction format', () {
