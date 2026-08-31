@@ -6,6 +6,7 @@ import 'package:ndk/domain_layer/usecases/bunkers/models/bunker_connection.dart'
 import 'package:ndk/domain_layer/usecases/bunkers/models/nostr_connect.dart';
 import 'package:ndk/entities.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/nostr_constants.dart';
 import '../../../core/providers/app_providers.dart';
 
@@ -313,12 +314,12 @@ class _Nip46ConnectDialogState extends ConsumerState<Nip46ConnectDialog>
                 ),
 
               SizedBox(
-                height: 330,
+                height: 350,
                 child: TabBarView(
                   controller: _tabController,
                   children: [
-                    _buildQrCodeTab(theme),
-                    _buildBunkerInputTab(theme),
+                    SingleChildScrollView(child: _buildQrCodeTab(theme)),
+                    SingleChildScrollView(child: _buildBunkerInputTab(theme)),
                   ],
                 ),
               ),
@@ -331,15 +332,19 @@ class _Nip46ConnectDialogState extends ConsumerState<Nip46ConnectDialog>
 
   Widget _buildQrCodeTab(ThemeData theme) {
     if (_nostrConnect == null) {
-      return const Center(child: CircularProgressIndicator());
+      return const Padding(
+        padding: EdgeInsets.all(40.0),
+        child: Center(child: CircularProgressIndicator()),
+      );
     }
 
     final connectUrl = _nostrConnect!.nostrConnectURL;
 
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(12),
@@ -348,11 +353,11 @@ class _Nip46ConnectDialogState extends ConsumerState<Nip46ConnectDialog>
           child: QrImageView(
             data: connectUrl,
             version: QrVersions.auto,
-            size: 180.0,
+            size: 140.0,
             backgroundColor: Colors.white,
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
         if (_isConnecting) ...[
           const Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -392,21 +397,27 @@ class _Nip46ConnectDialogState extends ConsumerState<Nip46ConnectDialog>
             ],
           ),
         ],
-        const SizedBox(height: 12),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 6,
+          alignment: WrapAlignment.center,
           children: [
+            FilledButton.icon(
+              onPressed: () => _openInAmber(connectUrl),
+              icon: const Icon(Icons.open_in_new_rounded, size: 16),
+              label: const Text('Open in Amber'),
+            ),
             OutlinedButton.icon(
               onPressed: () {
                 Clipboard.setData(ClipboardData(text: connectUrl));
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Nostr Connect URI copied to clipboard!')),
+                  const SnackBar(content: Text('Link copied! Open Amber -> tap "+" -> "Paste from clipboard"')),
                 );
               },
               icon: const Icon(Icons.copy_rounded, size: 16),
               label: const Text('Copy Link'),
             ),
-            const SizedBox(width: 8),
             TextButton(
               onPressed: _showManualPubkeyInput,
               child: const Text('Already approved?'),
@@ -415,6 +426,25 @@ class _Nip46ConnectDialogState extends ConsumerState<Nip46ConnectDialog>
         ),
       ],
     );
+  }
+
+  Future<void> _openInAmber(String connectUrl) async {
+    Clipboard.setData(ClipboardData(text: connectUrl));
+    try {
+      final uri = Uri.parse(connectUrl);
+      final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!launched && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Link copied! Open Amber -> tap "+" -> "Paste from clipboard"')),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Link copied! Open Amber -> tap "+" -> "Paste from clipboard"')),
+        );
+      }
+    }
   }
 
   Widget _buildBunkerInputTab(ThemeData theme) {
