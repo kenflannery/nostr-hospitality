@@ -171,17 +171,17 @@ class _TravelProfileEditorScreenState extends ConsumerState<TravelProfileEditorS
   }
 
   void _addExternalIdentityDialog() {
-    String platform = 'trustroots';
+    String platform = 'triphopping';
     final userCtrl = TextEditingController();
 
     const platforms = [
+      'triphopping',
+      'couchers',
       'trustroots',
       'couchsurfing',
       'warmshowers',
       'bewelcome',
-      'blablacar',
       'github',
-      'mastodon',
     ];
 
     showDialog(
@@ -190,7 +190,7 @@ class _TravelProfileEditorScreenState extends ConsumerState<TravelProfileEditorS
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              title: const Text('Link Legacy & External Profile'),
+              title: const Text('Link Hospitality & Social Profile'),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -200,7 +200,7 @@ class _TravelProfileEditorScreenState extends ConsumerState<TravelProfileEditorS
                     items: platforms
                         .map((p) => DropdownMenuItem(
                               value: p,
-                              child: Text(p[0].toUpperCase() + p.substring(1)),
+                              child: Text(ExternalIdentity(platform: p, username: '').platformName),
                             ))
                         .toList(),
                     onChanged: (val) {
@@ -792,7 +792,7 @@ class _TravelProfileEditorScreenState extends ConsumerState<TravelProfileEditorS
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Link your profiles on Trustroots, Couchsurfing, WarmShowers, BeWelcome, or GitHub to import cross-network trust.',
+                      'Link your profiles on Trip Hopping, Couchers, Trustroots, Couchsurfing, WarmShowers, BeWelcome, or GitHub to import cross-network trust.',
                       style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                     ),
                     const SizedBox(height: 12),

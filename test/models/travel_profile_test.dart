@@ -114,5 +114,27 @@ void main() {
       final iTags = event.tags.where((t) => t.isNotEmpty && t[0] == 'i').map((t) => t[1]).toList();
       expect(iTags, ['github:dartdev']);
     });
+
+    test('ExternalIdentity generates correct platform names and URLs', () {
+      const tripHopping = ExternalIdentity(platform: 'triphopping', username: 'alice');
+      expect(tripHopping.platformName, 'Trip Hopping');
+      expect(tripHopping.url, 'https://triphopping.com/profile/alice');
+
+      const couchers = ExternalIdentity(platform: 'couchers', username: 'bob');
+      expect(couchers.platformName, 'Couchers');
+      expect(couchers.url, 'https://couchers.org/user/bob');
+
+      const trustroots = ExternalIdentity(platform: 'trustroots', username: 'carol');
+      expect(trustroots.platformName, 'Trustroots');
+      expect(trustroots.url, 'https://www.trustroots.org/profile/carol');
+
+      const couchsurfing = ExternalIdentity(platform: 'couchsurfing', username: 'dave');
+      expect(couchsurfing.platformName, 'Couchsurfing');
+      expect(couchsurfing.url, 'https://www.couchsurfing.com/people/dave');
+
+      const warmshowers = ExternalIdentity(platform: 'warmshowers', username: 'eve');
+      expect(warmshowers.platformName, 'WarmShowers');
+      expect(warmshowers.url, 'https://www.warmshowers.org/users/eve');
+    });
   });
 }

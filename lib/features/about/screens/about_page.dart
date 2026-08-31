@@ -400,6 +400,8 @@ class _AboutPageState extends State<AboutPage>
     ["t", "hiking"],
     ["image", "https://image.nostr.build/adventure1.jpg"],
     ["image", "https://image.nostr.build/adventure2.jpg"],
+    ["i", "triphopping:alice_nomad"],
+    ["i", "couchers:alice_nomad"],
     ["i", "trustroots:alice_nomad"],
     ["i", "couchsurfing:alice.traveler"]
   ]
@@ -416,7 +418,7 @@ class _AboutPageState extends State<AboutPage>
               '`gender` / `birth_year` - Optional self-sovereign demographics (`birth_year` allows dynamic age computation)',
               '`occupation` / `education` - Professional background',
               '`t` - Topic and hobby interests (`#hiking`, `#cycling`, `#nostr`)',
-              '`i` - NIP-39 style external identity links (e.g. `["i", "trustroots:alice"]`, `["i", "couchsurfing:alice"]`)',
+              '`i` - NIP-39 style external identity links (e.g. `["i", "triphopping:alice"]`, `["i", "couchers:alice"]`, `["i", "trustroots:alice"]`)',
             ],
           ),
 

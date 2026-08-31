@@ -173,7 +173,7 @@ To prevent standard social clients from clobbering domain-specific profile data 
 - `occupation` / `education`: Professional / personal background.
 - `t`: Interests / Topics (`cycling`, `hiking`, `nostr`).
 - `image`: Direct photo image URLs of adventures, travels, and lifestyle (`["image", "<url>"]`).
-- `i`: NIP-39 external verification links (`trustroots:username`, `couchsurfing:username`, `github:username`).
+- `i`: NIP-39 external verification links (`triphopping:username`, `couchers:username`, `trustroots:username`, `couchsurfing:username`, `github:username`).
 
 #### Example Kind 30602 Profile Event
 ```json
@@ -200,6 +200,8 @@ To prevent standard social clients from clobbering domain-specific profile data 
     ["t", "hiking"],
     ["image", "https://image.nostr.build/adventure1.jpg"],
     ["image", "https://image.nostr.build/adventure2.jpg"],
+    ["i", "triphopping:alice_nomad"],
+    ["i", "couchers:alice_nomad"],
     ["i", "trustroots:alice_nomad"],
     ["i", "couchsurfing:alice.traveler"]
   ]

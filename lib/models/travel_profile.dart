@@ -61,6 +61,10 @@ class ExternalIdentity {
 
   String get platformName {
     switch (platform.toLowerCase()) {
+      case 'triphopping':
+        return 'Trip Hopping';
+      case 'couchers':
+        return 'Couchers';
       case 'trustroots':
         return 'Trustroots';
       case 'couchsurfing':
@@ -69,12 +73,8 @@ class ExternalIdentity {
         return 'WarmShowers';
       case 'bewelcome':
         return 'BeWelcome';
-      case 'blablacar':
-        return 'BlaBlaCar';
       case 'github':
         return 'GitHub';
-      case 'mastodon':
-        return 'Mastodon';
       case 'twitter':
       case 'x':
         return 'X (Twitter)';
@@ -85,6 +85,10 @@ class ExternalIdentity {
 
   String get url {
     switch (platform.toLowerCase()) {
+      case 'triphopping':
+        return 'https://triphopping.com/profile/$username';
+      case 'couchers':
+        return 'https://couchers.org/user/$username';
       case 'trustroots':
         return 'https://www.trustroots.org/profile/$username';
       case 'couchsurfing':

@@ -65,6 +65,8 @@ The event's `.content` contains the user's free-form personal travel story, phil
     ["image", "https://image.nostr.build/lyon_cycling.jpg"],
 
     // 6. NIP-39 External Identity Links (Imported Cross-Platform Trust)
+    ["i", "triphopping:alice_nomad"],
+    ["i", "couchers:alice_traveler"],
     ["i", "trustroots:alice_nomad"],
     ["i", "couchsurfing:alice.traveler"],
     ["i", "warmshowers:alice_rides"],

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/nip19_utils.dart';
@@ -283,15 +284,33 @@ class ProfileScreen extends ConsumerWidget {
 
                     if (profile.website != null && profile.website!.isNotEmpty) ...[
                       const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Icon(Icons.language_rounded, size: 14, color: theme.colorScheme.outline),
-                          const SizedBox(width: 6),
-                          Text(
-                            profile.website!,
-                            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.primary),
+                      InkWell(
+                        onTap: () async {
+                          final rawUrl = profile.website!.trim();
+                          final formattedUrl = rawUrl.startsWith('http') ? rawUrl : 'https://$rawUrl';
+                          final uri = Uri.tryParse(formattedUrl);
+                          if (uri != null && await canLaunchUrl(uri)) {
+                            await launchUrl(uri, mode: LaunchMode.externalApplication);
+                          }
+                        },
+                        borderRadius: BorderRadius.circular(6),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 2.0),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.language_rounded, size: 14, color: theme.colorScheme.primary),
+                              const SizedBox(width: 6),
+                              Text(
+                                profile.website!,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.primary,
+                                  decoration: TextDecoration.underline,
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
                     ],
 
@@ -800,10 +819,17 @@ class ProfileScreen extends ConsumerWidget {
                 children: travelProfile.externalIdentities.map((id) {
                   return InkWell(
                     onTap: id.url.isNotEmpty
-                        ? () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Profile link: ${id.url}')),
-                            );
+                        ? () async {
+                            final uri = Uri.tryParse(id.url);
+                            if (uri != null && await canLaunchUrl(uri)) {
+                              await launchUrl(uri, mode: LaunchMode.externalApplication);
+                            } else {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Could not open: ${id.url}')),
+                                );
+                              }
+                            }
                           }
                         : null,
                     borderRadius: BorderRadius.circular(8),
