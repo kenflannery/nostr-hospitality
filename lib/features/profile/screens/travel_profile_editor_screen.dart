@@ -84,6 +84,16 @@ class _TravelProfileEditorScreenState extends ConsumerState<TravelProfileEditorS
     super.dispose();
   }
 
+  void _addCustomInterest() {
+    final text = _customInterestController.text.trim().toLowerCase().replaceAll('#', '').replaceAll(' ', '_');
+    if (text.isNotEmpty && !_interests.contains(text)) {
+      setState(() {
+        _interests.add(text);
+        _customInterestController.clear();
+      });
+    }
+  }
+
   void _addLanguageDialog() {
     String selectedCode = 'en';
     String selectedLevel = 'fluent';
@@ -738,8 +748,43 @@ class _TravelProfileEditorScreenState extends ConsumerState<TravelProfileEditorS
                         ),
                       ],
                     ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Select from popular topics or add your own custom passions.',
+                      style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                    ),
                     const SizedBox(height: 12),
 
+                    // Custom Interests currently selected that are not in predefined list
+                    if (_interests.any((i) => !_availableInterests.contains(i))) ...[
+                      Text(
+                        'Custom Interests',
+                        style: theme.textTheme.labelSmall?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _interests
+                            .where((i) => !_availableInterests.contains(i))
+                            .map((interest) {
+                          return Chip(
+                            label: Text('#$interest'),
+                            deleteIcon: const Icon(Icons.close_rounded, size: 16),
+                            onDeleted: () {
+                              setState(() => _interests.remove(interest));
+                            },
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+
+                    Text(
+                      'Suggested Topics',
+                      style: theme.textTheme.labelSmall?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 6),
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
@@ -760,13 +805,38 @@ class _TravelProfileEditorScreenState extends ConsumerState<TravelProfileEditorS
                         );
                       }).toList(),
                     ),
+                    const SizedBox(height: 14),
+
+                    // Custom interest text input field
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _customInterestController,
+                            decoration: const InputDecoration(
+                              labelText: 'Add Custom Interest / Topic',
+                              hintText: 'e.g. foraging, salsa_dancing, chess',
+                              prefixIcon: Icon(Icons.tag_rounded, size: 18),
+                              isDense: true,
+                            ),
+                            onSubmitted: (_) => _addCustomInterest(),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton.filledTonal(
+                          onPressed: _addCustomInterest,
+                          icon: const Icon(Icons.add_rounded),
+                          tooltip: 'Add interest',
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),
             ),
             const SizedBox(height: 20),
 
-            // --- SECTION 6: External Identity & Legacy Links (NIP-39) ---
+            // --- SECTION 6: Linked Networks & Communities (network tag) ---
             Card(
               margin: EdgeInsets.zero,
               child: Padding(
