@@ -675,6 +675,69 @@ class ProfileScreen extends ConsumerWidget {
               const SizedBox(height: 16),
             ],
 
+            // Travel & Lifestyle Photos
+            if (travelProfile.images.isNotEmpty) ...[
+              Text('Photos & Adventures', style: theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 110,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: travelProfile.images.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 10),
+                  itemBuilder: (ctx, i) {
+                    final imgUrl = travelProfile.images[i];
+                    return GestureDetector(
+                      onTap: () {
+                        showDialog(
+                          context: context,
+                          builder: (dCtx) => Dialog(
+                            backgroundColor: Colors.black.withValues(alpha: 0.85),
+                            insetPadding: const EdgeInsets.all(12),
+                            child: Stack(
+                              alignment: Alignment.topRight,
+                              children: [
+                                Center(
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(16),
+                                    child: Image.network(imgUrl, fit: BoxFit.contain),
+                                  ),
+                                ),
+                                Positioned(
+                                  top: 10,
+                                  right: 10,
+                                  child: IconButton(
+                                    icon: const Icon(Icons.close_rounded, color: Colors.white, size: 28),
+                                    onPressed: () => Navigator.of(dCtx).pop(),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.network(
+                          imgUrl,
+                          width: 110,
+                          height: 110,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                            width: 110,
+                            height: 110,
+                            color: Colors.grey[800],
+                            child: const Icon(Icons.broken_image_rounded, color: Colors.white54),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+
             // Languages
             if (travelProfile.languages.isNotEmpty) ...[
               Text('Languages', style: theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.bold)),

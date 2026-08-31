@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../models/travel_profile.dart';
 
@@ -30,10 +31,12 @@ class _TravelProfileEditorScreenState extends ConsumerState<TravelProfileEditorS
   final List<LanguageProficiency> _languages = [];
   final List<String> _interests = [];
   final List<ExternalIdentity> _externalIdentities = [];
+  final List<String> _images = [];
 
   final TextEditingController _customInterestController = TextEditingController();
 
   bool _isSaving = false;
+  bool _isUploadingImage = false;
 
   final List<String> _availableInterests = const [
     'hiking', 'cycling', 'cooking', 'music', 'art', 'reading',
@@ -63,6 +66,7 @@ class _TravelProfileEditorScreenState extends ConsumerState<TravelProfileEditorS
       _languages.addAll(init.languages);
       _interests.addAll(init.interests);
       _externalIdentities.addAll(init.externalIdentities);
+      _images.addAll(init.images);
     }
   }
 
@@ -239,6 +243,80 @@ class _TravelProfileEditorScreenState extends ConsumerState<TravelProfileEditorS
     );
   }
 
+  Future<void> _pickAndUploadImage() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1920,
+      maxHeight: 1080,
+      imageQuality: 85,
+    );
+    if (picked == null) return;
+
+    setState(() => _isUploadingImage = true);
+    try {
+      final bytes = await picked.readAsBytes();
+      final uploadService = ref.read(mediaUploadServiceProvider);
+      final url = await uploadService.uploadImage(
+        bytes: bytes,
+        filename: picked.name,
+      );
+      setState(() {
+        _images.add(url);
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Photo uploaded to nostr.build successfully!')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Photo upload failed: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isUploadingImage = false);
+      }
+    }
+  }
+
+  void _showAddImageUrlDialog() {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Add Photo by URL'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: 'Photo HTTPS URL',
+            hintText: 'https://example.com/travel_photo.jpg',
+            prefixIcon: Icon(Icons.link_rounded),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final url = controller.text.trim();
+              if (url.isNotEmpty && url.startsWith('http')) {
+                setState(() => _images.add(url));
+                Navigator.of(ctx).pop();
+              }
+            },
+            child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -303,6 +381,124 @@ class _TravelProfileEditorScreenState extends ConsumerState<TravelProfileEditorS
                         _buildModeChip('meetup', '☕ Local Hangouts & Coffee'),
                         _buildModeChip('rideshare', '🚗 Rideshare / Carpool'),
                         _buildModeChip('language_exchange', '🗣️ Language Exchange'),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // --- SECTION: Travel & Lifestyle Photos (nostr.build) ---
+            Card(
+              margin: EdgeInsets.zero,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.photo_library_outlined, color: theme.colorScheme.primary),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Travel & Lifestyle Photos',
+                          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Upload photos from your adventures, travels, or hometown. Hosted on nostr.build and published with your Kind 30602 profile.',
+                      style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Active Upload Spinner
+                    if (_isUploadingImage)
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 16),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.4)),
+                        ),
+                        child: const Row(
+                          children: [
+                            SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2.5),
+                            ),
+                            SizedBox(width: 14),
+                            Expanded(
+                              child: Text(
+                                'Uploading photo to nostr.build via NIP-96...',
+                                style: TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                    // Gallery Display
+                    if (_images.isNotEmpty)
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 12,
+                        children: [
+                          for (int i = 0; i < _images.length; i++)
+                            Stack(
+                              children: [
+                                Container(
+                                  width: 100,
+                                  height: 100,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: theme.colorScheme.outlineVariant),
+                                    image: DecorationImage(
+                                      image: NetworkImage(_images[i]),
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
+                                ),
+                                Positioned(
+                                  top: 4,
+                                  right: 4,
+                                  child: GestureDetector(
+                                    onTap: () => setState(() => _images.removeAt(i)),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: BoxDecoration(
+                                        color: Colors.black.withValues(alpha: 0.7),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(Icons.close_rounded, color: Colors.white, size: 14),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                        ],
+                      ),
+
+                    if (_images.isNotEmpty) const SizedBox(height: 16),
+
+                    // Action buttons
+                    Row(
+                      children: [
+                        FilledButton.tonalIcon(
+                          onPressed: _isUploadingImage ? null : _pickAndUploadImage,
+                          icon: const Icon(Icons.add_photo_alternate_rounded, size: 18),
+                          label: const Text('Upload Photo'),
+                        ),
+                        const SizedBox(width: 10),
+                        OutlinedButton.icon(
+                          onPressed: _isUploadingImage ? null : _showAddImageUrlDialog,
+                          icon: const Icon(Icons.link_rounded, size: 18),
+                          label: const Text('Add by URL'),
+                        ),
                       ],
                     ),
                   ],
@@ -701,6 +897,7 @@ class _TravelProfileEditorScreenState extends ConsumerState<TravelProfileEditorS
         modes: _selectedModes.toList(),
         interests: _interests,
         externalIdentities: _externalIdentities,
+        images: _images,
       );
 
       await repo.saveTravelProfile(updatedProfile);

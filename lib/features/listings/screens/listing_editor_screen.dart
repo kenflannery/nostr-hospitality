@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
 import '../../../core/constants/nostr_constants.dart';
 import '../../../core/providers/app_providers.dart';
@@ -9,7 +10,7 @@ import '../../../core/utils/geohash_helper.dart';
 import '../../../models/hospitality_listing.dart';
 
 /// Screen to create or edit a NIP-99 (Kind 30402) Hospitality Hosting Offer
-/// featuring a map-based area selector and tri-state (Unanswered / Yes / No) preferences.
+/// featuring a map-based area selector, nostr.build image upload, and tri-state preferences.
 class ListingEditorScreen extends ConsumerStatefulWidget {
   final HospitalityListing? initialListing;
 
@@ -26,7 +27,6 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
   late TextEditingController _summaryController;
   late TextEditingController _contentController;
   late TextEditingController _locationSearchController;
-  late TextEditingController _imageUrlController;
   late TextEditingController _parkingDetailsController;
 
   final MapController _mapController = MapController();
@@ -34,6 +34,9 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
   late bool _isActive;
   bool _isSaving = false;
   bool _isSearchingCities = false;
+  bool _isUploadingImage = false;
+
+  final List<String> _images = [];
 
   String _currentLocationName = 'Seattle, WA, USA';
   String _currentGeohash = 'c23n';
@@ -68,11 +71,12 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
     _titleController = TextEditingController(text: init?.title ?? '');
     _summaryController = TextEditingController(text: init?.summary ?? '');
     _contentController = TextEditingController(text: init?.content ?? '');
-    _imageUrlController = TextEditingController(
-      text: init?.images.isNotEmpty == true ? init!.images.first : '',
-    );
     _parkingDetailsController = TextEditingController(text: init?.parkingDetails ?? '');
     _isActive = init?.isActive ?? true;
+
+    if (init?.images != null) {
+      _images.addAll(init!.images);
+    }
 
     // Load existing values (null if not set)
     _maxGuests = init?.maxGuests;
@@ -115,10 +119,83 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
     _summaryController.dispose();
     _contentController.dispose();
     _locationSearchController.dispose();
-    _imageUrlController.dispose();
     _parkingDetailsController.dispose();
     _mapController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickAndUploadImage() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1920,
+      maxHeight: 1080,
+      imageQuality: 85,
+    );
+    if (picked == null) return;
+
+    setState(() => _isUploadingImage = true);
+    try {
+      final bytes = await picked.readAsBytes();
+      final uploadService = ref.read(mediaUploadServiceProvider);
+      final url = await uploadService.uploadImage(
+        bytes: bytes,
+        filename: picked.name,
+      );
+      setState(() {
+        _images.add(url);
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Photo uploaded to nostr.build successfully!')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Photo upload failed: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isUploadingImage = false);
+      }
+    }
+  }
+
+  void _showAddImageUrlDialog() {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Add Image by URL'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: 'Image HTTPS URL',
+            hintText: 'https://example.com/room.jpg',
+            prefixIcon: Icon(Icons.link_rounded),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final url = controller.text.trim();
+              if (url.isNotEmpty && url.startsWith('http')) {
+                setState(() => _images.add(url));
+                Navigator.of(ctx).pop();
+              }
+            },
+            child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _onCitySearchChanged(String query) async {
@@ -756,14 +833,138 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
             ),
             const SizedBox(height: 20),
 
-            // Photo Image URL
-            Text('Photo Image URL (Optional)', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 6),
-            TextFormField(
-              controller: _imageUrlController,
-              decoration: const InputDecoration(
-                hintText: 'https://example.com/room_photo.jpg',
-                prefixIcon: Icon(Icons.image_outlined),
+            const SizedBox(height: 24),
+
+            // --- SECTION: Accommodation Photos (nostr.build) ---
+            Card(
+              margin: EdgeInsets.zero,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.photo_library_outlined, color: theme.colorScheme.primary),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Accommodation Photos',
+                          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Upload photos of your spare room, couch, or home. Hosted decentralized on nostr.build and published in your Nostr listing.',
+                      style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Active Upload Spinner
+                    if (_isUploadingImage)
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 16),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.4)),
+                        ),
+                        child: const Row(
+                          children: [
+                            SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2.5),
+                            ),
+                            SizedBox(width: 14),
+                            Expanded(
+                              child: Text(
+                                'Uploading image to nostr.build via NIP-96...',
+                                style: TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                    // Gallery Display
+                    if (_images.isNotEmpty)
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 12,
+                        children: [
+                          for (int i = 0; i < _images.length; i++)
+                            Stack(
+                              children: [
+                                Container(
+                                  width: 110,
+                                  height: 110,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: theme.colorScheme.outlineVariant),
+                                    image: DecorationImage(
+                                      image: NetworkImage(_images[i]),
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
+                                ),
+                                if (i == 0)
+                                  Positioned(
+                                    top: 6,
+                                    left: 6,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: Colors.black.withValues(alpha: 0.75),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: const Text(
+                                        'Cover',
+                                        style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                      ),
+                                    ),
+                                  ),
+                                Positioned(
+                                  top: 4,
+                                  right: 4,
+                                  child: GestureDetector(
+                                    onTap: () => setState(() => _images.removeAt(i)),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: BoxDecoration(
+                                        color: Colors.black.withValues(alpha: 0.7),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(Icons.close_rounded, color: Colors.white, size: 14),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                        ],
+                      ),
+
+                    if (_images.isNotEmpty) const SizedBox(height: 16),
+
+                    // Action buttons
+                    Row(
+                      children: [
+                        FilledButton.tonalIcon(
+                          onPressed: _isUploadingImage ? null : _pickAndUploadImage,
+                          icon: const Icon(Icons.add_photo_alternate_rounded, size: 18),
+                          label: const Text('Upload Photo'),
+                        ),
+                        const SizedBox(width: 10),
+                        OutlinedButton.icon(
+                          onPressed: _isUploadingImage ? null : _showAddImageUrlDialog,
+                          icon: const Icon(Icons.link_rounded, size: 18),
+                          label: const Text('Add by URL'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: 32),
@@ -878,12 +1079,6 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
 
       final dTag = existing?.dTag ?? '$myPubkey-home';
 
-      final images = <String>[];
-      final img = _imageUrlController.text.trim();
-      if (img.isNotEmpty) {
-        images.add(img);
-      }
-
       final draft = HospitalityListing(
         eventId: existing?.eventId ?? '',
         authorPubkey: myPubkey,
@@ -898,7 +1093,7 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
         status: _isActive ? NostrConstants.statusActive : NostrConstants.statusSold,
         publishedAt: existing?.publishedAt ?? DateTime.now(),
         createdAt: DateTime.now(),
-        images: images,
+        images: _images,
         categories: const [
           NostrConstants.topicHospitality,
           'Home',

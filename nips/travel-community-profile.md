@@ -60,7 +60,11 @@ The event's `.content` contains the user's free-form personal travel story, phil
     ["t", "cooking"],
     ["t", "nostr"],
 
-    // 5. NIP-39 External Identity Links (Imported Cross-Platform Trust)
+    // 5. Travel & Lifestyle Photos (NIP-96 hosted)
+    ["image", "https://image.nostr.build/alps_hiking.jpg"],
+    ["image", "https://image.nostr.build/lyon_cycling.jpg"],
+
+    // 6. NIP-39 External Identity Links (Imported Cross-Platform Trust)
     ["i", "trustroots:alice_nomad"],
     ["i", "couchsurfing:alice.traveler"],
     ["i", "warmshowers:alice_rides"],
@@ -76,6 +80,9 @@ The event's `.content` contains the user's free-form personal travel story, phil
 
 ### `d` (REQUIRED)
 Addressable identifier. Defaults to `"travel-profile"`.
+
+### `image` (OPTIONAL)
+Direct HTTPS URLs of personal travel, adventure, and lifestyle photos hosted on decentralized media servers (e.g. `nostr.build` via NIP-96).
 
 ### `mode` (OPTIONAL)
 Declares the active real-world interaction modes the user is open to participating in:

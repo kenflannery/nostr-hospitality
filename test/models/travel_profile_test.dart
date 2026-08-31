@@ -29,6 +29,8 @@ void main() {
           ['mode', 'meetup'],
           ['t', 'cycling'],
           ['t', 'hiking'],
+          ['image', 'https://image.nostr.build/trip1.jpg'],
+          ['image', 'https://image.nostr.build/trip2.jpg'],
           ['i', 'trustroots:alice_nomad'],
           ['i', 'couchsurfing:alice.traveler'],
         ],
@@ -57,6 +59,7 @@ void main() {
       expect(profile.isOpenToMeetup, true);
       expect(profile.isOpenToRideshare, false);
       expect(profile.interests, ['cycling', 'hiking']);
+      expect(profile.images, ['https://image.nostr.build/trip1.jpg', 'https://image.nostr.build/trip2.jpg']);
       expect(profile.externalIdentities.length, 2);
       expect(profile.externalIdentities[0].platform, 'trustroots');
       expect(profile.externalIdentities[0].username, 'alice_nomad');
@@ -83,6 +86,7 @@ void main() {
         ],
         modes: const ['host', 'rideshare'],
         interests: const ['nostr', 'open_source'],
+        images: const ['https://image.nostr.build/oaxaca_sunset.jpg'],
         externalIdentities: const [
           ExternalIdentity(platform: 'github', username: 'dartdev'),
         ],
@@ -97,6 +101,9 @@ void main() {
 
       final genderTag = event.tags.firstWhere((t) => t.isNotEmpty && t[0] == 'gender');
       expect(genderTag[1], 'non-binary');
+
+      final imageTag = event.tags.firstWhere((t) => t.isNotEmpty && t[0] == 'image');
+      expect(imageTag[1], 'https://image.nostr.build/oaxaca_sunset.jpg');
 
       final birthYearTag = event.tags.firstWhere((t) => t.isNotEmpty && t[0] == 'birth_year');
       expect(birthYearTag[1], '1998');

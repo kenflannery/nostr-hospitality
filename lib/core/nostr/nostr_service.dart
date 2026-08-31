@@ -96,7 +96,7 @@ class NostrService {
   }
 
   /// Signs an unsigned event with the active signer reliably.
-  Future<void> signEvent(Nip01Event event) async {
+  Future<Nip01Event> signEvent(Nip01Event event) async {
     _ensureInitialized();
 
     // If memory state was cleared during refresh, reload from secure storage
@@ -114,7 +114,7 @@ class NostrService {
     } catch (_) {}
 
     // Directly sign using active eventSigner (Bip340EventSigner)
-    await signerService.eventSigner!.sign(event);
+    return await signerService.eventSigner!.sign(event);
   }
 
   /// Signs (if unsigned) and broadcasts an event to the configured relays.
@@ -124,13 +124,13 @@ class NostrService {
   }) async {
     _ensureInitialized();
 
-    if (event.sig == null || event.sig!.isEmpty) {
-      await signEvent(event);
-    }
+    final signedEvent = (event.sig == null || event.sig!.isEmpty)
+        ? await signEvent(event)
+        : event;
 
     final relays = explicitRelays ?? relayConfig.relays;
     return _ndk.broadcast.broadcast(
-      nostrEvent: event,
+      nostrEvent: signedEvent,
       specificRelays: relays,
     );
   }

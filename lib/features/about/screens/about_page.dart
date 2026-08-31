@@ -398,6 +398,8 @@ class _AboutPageState extends State<AboutPage>
     ["mode", "meetup"],
     ["t", "cycling"],
     ["t", "hiking"],
+    ["image", "https://image.nostr.build/adventure1.jpg"],
+    ["image", "https://image.nostr.build/adventure2.jpg"],
     ["i", "trustroots:alice_nomad"],
     ["i", "couchsurfing:alice.traveler"]
   ]
@@ -406,6 +408,7 @@ class _AboutPageState extends State<AboutPage>
                 'The content field contains the personal travel story, philosophy, background, and expectations.',
             tags: [
               '`d` (REQUIRED) - Addressable profile identifier (defaults to `travel-profile`)',
+              '`image` (OPTIONAL) - Direct photo image URLs of adventures, travels, or lifestyle hosted on decentralized media servers',
               '`mode` - Active interaction modes: `host`, `guest`, `meetup`, `rideshare`, `language_exchange`',
               '`language` - Spoken languages: `["language", "<code>", "<level>"]` (e.g. `["language", "en", "fluent"]`)',
               '`origin_country` / `origin_city` - Where the user grew up / origin location',

@@ -14,6 +14,7 @@ import '../../repositories/reference_repository.dart';
 import '../nostr/nostr_service.dart';
 import '../nostr/relay_config.dart';
 import '../nostr/signer_service.dart';
+import '../services/media_upload_service.dart';
 
 // --- Base Infrastructure Providers ---
 
@@ -39,6 +40,11 @@ final nostrServiceProvider = Provider<NostrService>((ref) {
   );
   ref.onDispose(() => service.dispose());
   return service;
+});
+
+final mediaUploadServiceProvider = Provider<MediaUploadService>((ref) {
+  final nostrService = ref.watch(nostrServiceProvider);
+  return MediaUploadService(nostrService);
 });
 
 // --- Repository Providers ---

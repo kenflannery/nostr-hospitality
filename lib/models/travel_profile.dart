@@ -134,6 +134,9 @@ class TravelProfile {
   // NIP-39 External Verifications & Cross-Platform Identities
   final List<ExternalIdentity> externalIdentities;
 
+  // Travel & Lifestyle Photos (NIP-96 / standard image tags)
+  final List<String> images;
+
   final List<List<String>> rawTags;
 
   const TravelProfile({
@@ -154,6 +157,7 @@ class TravelProfile {
     this.modes = const [],
     this.interests = const [],
     this.externalIdentities = const [],
+    this.images = const [],
     this.rawTags = const [],
   });
 
@@ -228,6 +232,7 @@ class TravelProfile {
     final modes = <String>[];
     final interests = <String>[];
     final externalIdentities = <ExternalIdentity>[];
+    final images = <String>[];
 
     for (final tag in event.tags) {
       if (tag.isEmpty) continue;
@@ -260,6 +265,8 @@ class TravelProfile {
         modes.add(tag[1].toLowerCase());
       } else if (key == NostrConstants.tagT && tag.length > 1) {
         interests.add(tag[1]);
+      } else if (key == 'image' && tag.length > 1 && tag[1].trim().isNotEmpty) {
+        images.add(tag[1].trim());
       } else if (key == 'i' && tag.length > 1) {
         final parts = tag[1].split(':');
         if (parts.length >= 2) {
@@ -292,6 +299,7 @@ class TravelProfile {
       modes: modes,
       interests: interests,
       externalIdentities: externalIdentities,
+      images: images,
       rawTags: event.tags,
     );
   }
@@ -354,7 +362,14 @@ class TravelProfile {
       }
     }
 
-    // 6. External identities (NIP-39)
+    // 6. Travel & Lifestyle Photos
+    for (final image in images) {
+      if (image.trim().isNotEmpty) {
+        tags.add(['image', image.trim()]);
+      }
+    }
+
+    // 7. External identities (NIP-39)
     for (final id in externalIdentities) {
       if (id.platform.trim().isNotEmpty && id.username.trim().isNotEmpty) {
         final value = '${id.platform.trim().toLowerCase()}:${id.username.trim()}';
@@ -394,6 +409,7 @@ class TravelProfile {
     List<String>? modes,
     List<String>? interests,
     List<ExternalIdentity>? externalIdentities,
+    List<String>? images,
     List<List<String>>? rawTags,
   }) {
     return TravelProfile(
@@ -414,6 +430,7 @@ class TravelProfile {
       modes: modes ?? this.modes,
       interests: interests ?? this.interests,
       externalIdentities: externalIdentities ?? this.externalIdentities,
+      images: images ?? this.images,
       rawTags: rawTags ?? this.rawTags,
     );
   }

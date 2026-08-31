@@ -157,15 +157,9 @@ class ListingDetailScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Image Header if present
+            // Image Gallery Header
             if (listing.images.isNotEmpty)
-              Image.network(
-                listing.images.first,
-                width: double.infinity,
-                height: 220,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-              ),
+              _ListingImageCarousel(images: listing.images),
 
             Padding(
               padding: const EdgeInsets.all(20.0),
@@ -688,6 +682,116 @@ class ListingDetailScreen extends ConsumerWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _ListingImageCarousel extends StatefulWidget {
+  final List<String> images;
+
+  const _ListingImageCarousel({required this.images});
+
+  @override
+  State<_ListingImageCarousel> createState() => _ListingImageCarouselState();
+}
+
+class _ListingImageCarouselState extends State<_ListingImageCarousel> {
+  int _currentIndex = 0;
+  late final PageController _pageController;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.images.length == 1) {
+      return Image.network(
+        widget.images.first,
+        width: double.infinity,
+        height: 240,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+      );
+    }
+
+    return SizedBox(
+      height: 250,
+      child: Stack(
+        children: [
+          PageView.builder(
+            controller: _pageController,
+            itemCount: widget.images.length,
+            onPageChanged: (idx) => setState(() => _currentIndex = idx),
+            itemBuilder: (ctx, i) {
+              return Image.network(
+                widget.images[i],
+                width: double.infinity,
+                height: 250,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                  color: Colors.grey[800],
+                  child: const Center(
+                    child: Icon(Icons.broken_image_rounded, size: 40, color: Colors.white54),
+                  ),
+                ),
+              );
+            },
+          ),
+
+          // Page counter badge (e.g. 1 / 4)
+          Positioned(
+            bottom: 12,
+            right: 14,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.65),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                '${_currentIndex + 1} / ${widget.images.length}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+
+          // Dot indicator
+          Positioned(
+            bottom: 12,
+            left: 0,
+            right: 0,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(
+                widget.images.length,
+                (i) => AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  margin: const EdgeInsets.symmetric(horizontal: 3),
+                  width: _currentIndex == i ? 18 : 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: _currentIndex == i ? Colors.white : Colors.white.withValues(alpha: 0.4),
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
