@@ -31,8 +31,8 @@ void main() {
           ['t', 'hiking'],
           ['image', 'https://image.nostr.build/trip1.jpg'],
           ['image', 'https://image.nostr.build/trip2.jpg'],
-          ['i', 'trustroots:alice_nomad'],
-          ['i', 'couchsurfing:alice.traveler'],
+          ['network', 'triphopping', 'alice_nomad'],
+          ['network', 'couchers', 'alice_traveler'],
         ],
         content: 'Slow traveler and photographer passionate about food, cycling, and decentralization.',
         createdAt: 1719234800,
@@ -61,9 +61,9 @@ void main() {
       expect(profile.interests, ['cycling', 'hiking']);
       expect(profile.images, ['https://image.nostr.build/trip1.jpg', 'https://image.nostr.build/trip2.jpg']);
       expect(profile.externalIdentities.length, 2);
-      expect(profile.externalIdentities[0].platform, 'trustroots');
+      expect(profile.externalIdentities[0].platform, 'triphopping');
       expect(profile.externalIdentities[0].username, 'alice_nomad');
-      expect(profile.externalIdentities[0].platformName, 'Trustroots');
+      expect(profile.externalIdentities[0].platformName, 'Trip Hopping');
     });
 
     test('toNip01Event produces correct Kind 30602 tags and structure', () {
@@ -88,7 +88,7 @@ void main() {
         interests: const ['nostr', 'open_source'],
         images: const ['https://image.nostr.build/oaxaca_sunset.jpg'],
         externalIdentities: const [
-          ExternalIdentity(platform: 'github', username: 'dartdev'),
+          ExternalIdentity(platform: 'triphopping', username: 'dartdev'),
         ],
       );
 
@@ -111,8 +111,10 @@ void main() {
       final modeTags = event.tags.where((t) => t.isNotEmpty && t[0] == 'mode').map((t) => t[1]).toList();
       expect(modeTags, ['host', 'rideshare']);
 
-      final iTags = event.tags.where((t) => t.isNotEmpty && t[0] == 'i').map((t) => t[1]).toList();
-      expect(iTags, ['github:dartdev']);
+      final networkTags = event.tags.where((t) => t.isNotEmpty && t[0] == 'network').toList();
+      expect(networkTags.length, 1);
+      expect(networkTags[0][1], 'triphopping');
+      expect(networkTags[0][2], 'dartdev');
     });
 
     test('ExternalIdentity generates correct platform names and URLs', () {

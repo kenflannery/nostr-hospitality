@@ -271,6 +271,12 @@ class TravelProfile {
         interests.add(tag[1]);
       } else if (key == 'image' && tag.length > 1 && tag[1].trim().isNotEmpty) {
         images.add(tag[1].trim());
+      } else if (key == 'network' && tag.length > 2) {
+        externalIdentities.add(ExternalIdentity(
+          platform: tag[1].trim(),
+          username: tag[2].trim(),
+          proof: tag.length > 3 ? tag[3].trim() : null,
+        ));
       } else if (key == 'i' && tag.length > 1) {
         final parts = tag[1].split(':');
         if (parts.length >= 2) {
@@ -373,14 +379,13 @@ class TravelProfile {
       }
     }
 
-    // 7. External identities (NIP-39)
+    // 7. Linked Hospitality & Travel Community Networks
     for (final id in externalIdentities) {
       if (id.platform.trim().isNotEmpty && id.username.trim().isNotEmpty) {
-        final value = '${id.platform.trim().toLowerCase()}:${id.username.trim()}';
         if (id.proof != null && id.proof!.trim().isNotEmpty) {
-          tags.add(['i', value, id.proof!.trim()]);
+          tags.add(['network', id.platform.trim().toLowerCase(), id.username.trim(), id.proof!.trim()]);
         } else {
-          tags.add(['i', value]);
+          tags.add(['network', id.platform.trim().toLowerCase(), id.username.trim()]);
         }
       }
     }

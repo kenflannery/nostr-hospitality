@@ -64,13 +64,13 @@ The event's `.content` contains the user's free-form personal travel story, phil
     ["image", "https://image.nostr.build/alps_hiking.jpg"],
     ["image", "https://image.nostr.build/lyon_cycling.jpg"],
 
-    // 6. NIP-39 External Identity Links (Imported Cross-Platform Trust)
-    ["i", "triphopping:alice_nomad"],
-    ["i", "couchers:alice_traveler"],
-    ["i", "trustroots:alice_nomad"],
-    ["i", "couchsurfing:alice.traveler"],
-    ["i", "warmshowers:alice_rides"],
-    ["i", "github:alicenomad"]
+    // 6. Linked Hospitality & Social Networks
+    ["network", "triphopping", "alice_nomad"],
+    ["network", "couchers", "alice_traveler"],
+    ["network", "trustroots", "alice_nomad"],
+    ["network", "couchsurfing", "alice.traveler"],
+    ["network", "warmshowers", "alice_rides"],
+    ["network", "github", "alicenomad"]
   ],
   "created_at": 1719234800
 }
@@ -104,10 +104,8 @@ Spoken languages formatted as `["language", "<iso-639-1-code>", "<proficiency>"]
 ### `origin_country`, `origin_city`, `home_country`, `home_city` (OPTIONAL)
 Distinguishes where the user grew up from their current home base.
 
-### `i` (OPTIONAL - NIP-39)
-NIP-39 identity claims linking verified profiles from legacy networks:
-- `["i", "trustroots:<username>"]`
-- `["i", "couchsurfing:<username>"]`
-- `["i", "warmshowers:<username>"]`
-- `["i", "bewelcome:<username>"]`
-- `["i", "github:<username>"]`
+### `network` (OPTIONAL)
+Linked hospitality, travel, and social network accounts formatted as `["network", "<platform>", "<username>", "<optional_url_or_proof>"]`:
+- Platforms: `triphopping`, `couchers`, `trustroots`, `couchsurfing`, `warmshowers`, `bewelcome`, `github`, `twitter`, `x`
+- Allows self-asserted cross-network identity and reputation discovery without misusing NIP-39 proof contracts.
+- Example: `["network", "triphopping", "alice_nomad"]`, `["network", "couchers", "alice_traveler"]`
