@@ -160,10 +160,10 @@ class HospitalityListing {
   bool get hasLocationCoordinates =>
       effectiveLatitude != null && effectiveLongitude != null;
 
-  /// 4-character privacy-truncated geohash.
+  /// Privacy-truncated geohash (up to 5 characters, safe for neighborhood/district level privacy).
   String? get privacyGeohash {
     if (geohash == null || geohash!.isEmpty) return null;
-    return geohash!.length > 4 ? geohash!.substring(0, 4) : geohash;
+    return geohash!.length > 5 ? geohash!.substring(0, 5) : geohash;
   }
 
   /// Parses a [Nip01Event] into a [HospitalityListing].
@@ -367,10 +367,10 @@ class HospitalityListing {
       tags.add([NostrConstants.tagLocation, location]);
     }
 
-    // 5. Geohash tag(s) with 4-character privacy bounding and cascading prefixes
+    // 5. Geohash tag(s) with privacy bounding and cascading prefixes
     final cleanGeohash = privacyGeohash;
     if (cleanGeohash != null && cleanGeohash.isNotEmpty) {
-      final prefixes = GeohashHelper.cascadingPrefixes(cleanGeohash, maxPrecision: 4);
+      final prefixes = GeohashHelper.cascadingPrefixes(cleanGeohash, maxPrecision: cleanGeohash.length.clamp(1, 5));
       for (final g in prefixes) {
         tags.add([NostrConstants.tagG, g]);
       }

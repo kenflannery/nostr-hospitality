@@ -53,8 +53,9 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
 
   final List<String> _images = [];
 
+  int _geohashPrecision = 5;
   String _currentLocationName = 'Seattle, WA, USA';
-  String _currentGeohash = 'c23n';
+  String _currentGeohash = 'c23nb';
   LatLng _currentCenter = const LatLng(47.6062, -122.3321);
 
   List<CitySearchResult> _citySuggestions = [];
@@ -122,6 +123,7 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
       _currentLocationName = init.location;
       if (init.geohash != null && init.geohash!.isNotEmpty) {
         _currentGeohash = init.privacyGeohash ?? init.geohash!;
+        _geohashPrecision = _currentGeohash.length.clamp(3, 5);
         final decoded = GeohashHelper.decode(_currentGeohash);
         if (decoded != null) {
           _currentCenter = LatLng(decoded.latitude, decoded.longitude);
@@ -132,8 +134,12 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
             LatLng(init.effectiveLatitude!, init.effectiveLongitude!);
         _currentGeohash = GeohashHelper.encode(
             _currentCenter.latitude, _currentCenter.longitude,
-            precision: 4);
+            precision: _geohashPrecision);
       }
+    } else {
+      _currentGeohash = GeohashHelper.encode(
+          _currentCenter.latitude, _currentCenter.longitude,
+          precision: _geohashPrecision);
     }
 
     _locationSearchController =
@@ -282,17 +288,19 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
     setState(() {
       _currentLocationName = city.displayName;
       _locationSearchController.text = city.displayName;
-      _currentGeohash = city.geohash;
       _currentCenter = LatLng(city.latitude, city.longitude);
+      _currentGeohash = GeohashHelper.encode(city.latitude, city.longitude,
+          precision: _geohashPrecision);
       _citySuggestions = [];
     });
 
-    _mapController.move(_currentCenter, 10.0);
+    final zoom = _geohashPrecision == 5 ? 11.5 : (_geohashPrecision == 4 ? 10.0 : 8.0);
+    _mapController.move(_currentCenter, zoom);
   }
 
   void _onMapTapped(LatLng point) {
-    final geohash =
-        GeohashHelper.encode(point.latitude, point.longitude, precision: 4);
+    final geohash = GeohashHelper.encode(point.latitude, point.longitude,
+        precision: _geohashPrecision);
     final decoded = GeohashHelper.decode(geohash);
 
     setState(() {
@@ -303,6 +311,34 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
         _currentCenter = point;
       }
     });
+  }
+
+  void _updateGeohashPrecision(int newPrecision) {
+    setState(() {
+      _geohashPrecision = newPrecision;
+      _currentGeohash = GeohashHelper.encode(
+        _currentCenter.latitude,
+        _currentCenter.longitude,
+        precision: _geohashPrecision,
+      );
+      final decoded = GeohashHelper.decode(_currentGeohash);
+      if (decoded != null) {
+        _currentCenter = LatLng(decoded.latitude, decoded.longitude);
+      }
+    });
+  }
+
+  String _getPrivacyDescription(int precision) {
+    switch (precision) {
+      case 5:
+        return '🔒 Nostr Privacy: Bounded to ~5km neighborhood zone (5-character geohash). Provides travelers a clear sense of the neighborhood while strictly keeping your exact street address private.';
+      case 4:
+        return '🔒 Nostr Privacy: Bounded to ~20-40km city/metro zone (4-character geohash). Broader area covering multiple neighborhoods.';
+      case 3:
+        return '🔒 Nostr Privacy: Bounded to ~150km regional zone (3-character geohash). Wide regional coverage for maximum geographic obscurity.';
+      default:
+        return '🔒 Nostr Privacy: Obscured to general zone. Exact street coordinates are never published.';
+    }
   }
 
   List<LatLng> _getGeohashPolygonPoints() {
@@ -528,8 +564,8 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
                         const SizedBox(height: 6),
                         Text(
                           _isRequest
-                              ? 'Search destination city or tap the map to set the general ~20-40km zone you plan to visit.'
-                              : 'Type your city or tap/drag anywhere on the map to set the general ~20-40km area where you host. Your exact street address is NEVER asked for or stored.',
+                              ? 'Search destination city or tap the map to set the general zone you plan to visit.'
+                              : 'Type your city or tap/drag anywhere on the map to set the general area where you host. Your exact street address is NEVER asked for or stored.',
                           style: theme.textTheme.bodySmall?.copyWith(
                               color: theme.colorScheme.onSurfaceVariant),
                         ),
@@ -585,7 +621,7 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
                                       style: const TextStyle(
                                           fontWeight: FontWeight.w600)),
                                   subtitle: Text(
-                                      'Zone: ${item.geohash} (~20-40km area)'),
+                                      'Zone: ${item.geohash} (~5km neighborhood area)'),
                                   onTap: () => _selectCity(item),
                                 );
                               },
@@ -671,34 +707,113 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
                     ),
                   ),
 
-                  // Area Confirmation Banner
+                  // Area & Privacy Confirmation Banner
                   Container(
                     padding: const EdgeInsets.all(14.0),
                     color: theme.colorScheme.surfaceContainerHigh,
-                    child: Row(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.shield_outlined,
-                            color: theme.colorScheme.primary, size: 20),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Selected Zone: $_currentLocationName (g: $_currentGeohash)',
+                        Row(
+                          children: [
+                            Icon(Icons.shield_outlined,
+                                color: theme.colorScheme.primary, size: 20),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Selected Zone: $_currentLocationName',
                                 style: const TextStyle(
                                     fontWeight: FontWeight.bold, fontSize: 13),
                               ),
-                              const SizedBox(height: 2),
-                              Text(
-                                '🔒 Nostr Privacy: Bounded to ~20-40km area. Exact street coordinates are never published.',
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.surface,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                    color: theme.colorScheme.outlineVariant),
+                              ),
+                              child: DropdownButtonHideUnderline(
+                                child: DropdownButton<int>(
+                                  value: _geohashPrecision,
+                                  isDense: true,
+                                  icon: const Icon(
+                                      Icons.arrow_drop_down_rounded,
+                                      size: 20),
+                                  items: const [
+                                    DropdownMenuItem(
+                                      value: 5,
+                                      child: Text(
+                                        '~5 km area (Neighborhood)',
+                                        style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600),
+                                      ),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 4,
+                                      child: Text(
+                                        '~20-40 km area (City)',
+                                        style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600),
+                                      ),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 3,
+                                      child: Text(
+                                        '~150 km area (Region)',
+                                        style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600),
+                                      ),
+                                    ),
+                                  ],
+                                  onChanged: (val) {
+                                    if (val != null) {
+                                      _updateGeohashPrecision(val);
+                                    }
+                                  },
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.primaryContainer
+                                    .withValues(alpha: 0.5),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                'g: $_currentGeohash',
+                                style: TextStyle(
+                                  fontFamily: 'monospace',
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: theme.colorScheme.primary,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                _getPrivacyDescription(_geohashPrecision),
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   color: theme.colorScheme.onSurfaceVariant,
                                   fontSize: 11,
                                 ),
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ],
                     ),

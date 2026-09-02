@@ -263,7 +263,7 @@ class _AboutPageState extends State<AboutPage>
             isDark,
             title: 'Hospitality Classifieds: Offers & Requests (Kind 30402 - NIP-99)',
             intro:
-                'NIP-99 Classified Listing specification for both Hosting Offers and Traveler Stay Requests with 4-character geohash privacy bounds, start/end date tags, and tri-state household preferences (see nips/hospitality-listings.md):',
+                'NIP-99 Classified Listing specification for both Hosting Offers and Traveler Stay Requests with 3 to 5 character geohash privacy bounds (defaulting to 5 characters, ~5km neighborhood zone), start/end date tags, and tri-state household preferences (see nips/hospitality-listings.md):',
             jsonSpec: '''{
   "kind": 30402,
   "pubkey": "<author-pubkey-hex>",
@@ -277,6 +277,7 @@ class _AboutPageState extends State<AboutPage>
     ["g", "dp"],
     ["g", "dp3"],
     ["g", "dp3w"],
+    ["g", "dp3wh"],
     ["origin_lat", "41.8781"],
     ["origin_lon", "-87.6298"],
     ["status", "active"],
@@ -298,7 +299,7 @@ class _AboutPageState extends State<AboutPage>
               '`title` (REQUIRED) - Human-readable title of the hosting offer or travel request',
               '`summary` (OPTIONAL) - Short preview text for cards and search feeds',
               '`location` (REQUIRED) - Human-readable location display name (e.g. "Seattle, WA, USA")',
-              '`g` (REQUIRED) - Cascading geohash tags strictly truncated to 4 characters (`c`, `c2`, `c23`, `c23n` ~20-40km area) for privacy protection',
+              '`g` (REQUIRED) - Cascading geohash tags bounded between 3 to 5 characters (default 5 characters, e.g. `c`, `c2`, `c23`, `c23n`, `c23nb` ~5km neighborhood area) for privacy protection',
               '`origin_lat` / `origin_lon` (OPTIONAL) - Approximate geohash center coordinate for simple client map pin rendering',
               '`status` (REQUIRED) - `active` (currently accepting guests or open request) or `sold`/`closed` (closed/inactive)',
               '`t` (REQUIRED) - `["t", "hospitality"]`, along with `["t", "hospitality-offer"]` or `["t", "hospitality-request"]`. (Absence of offer/request tag defaults to offer)',

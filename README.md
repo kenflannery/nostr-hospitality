@@ -62,9 +62,12 @@ Listings declare their intent using standard Nostr topic tags:
 - Open-ended hosting offers omit `start` and `end`.
 
 #### Geohash Precision & Privacy Policy
-- **Kind 30402 (Hospitality Classifieds)**: Geohashes are strictly truncated to a **maximum of 4 characters** (~39km x 19.5km bounding box) to protect the exact street address and privacy of hosts and travelers.
-- To enable multi-level proximity queries, listings publish cascading `g` tags (e.g. `["g", "c"]`, `["g", "c2"]`, `["g", "c23"]`, `["g", "c23n"]`).
-- `origin_lat` / `origin_lon` represent the approximate center coordinates of the 4-char geohash box for simple map client pin placement.
+- **Kind 30402 (Hospitality Classifieds)**: Geohashes are bounded between **3 to 5 characters** (defaulting to **5 characters**, ~5km neighborhood box) to protect the exact street address and privacy of hosts and travelers.
+  - **5 characters (Default)**: ~5km neighborhood box (~25 km²). Provides travelers an intuitive neighborhood location while strictly keeping home street addresses private.
+  - **4 characters**: ~20-40km city or metro area.
+  - **3 characters**: ~150km regional area for maximum privacy.
+- To enable multi-level proximity queries, listings publish cascading `g` tags (e.g. `["g", "c"]`, `["g", "c2"]`, `["g", "c23"]`, `["g", "c23n"]`, `["g", "c23nb"]`).
+- `origin_lat` / `origin_lon` represent the approximate center coordinates of the geohash box for simple map client pin placement.
 
 #### Preferences & Household Tags
 All preference tags follow **strict tri-state nullability** (absence of tag = unspecified; `"true"` = yes; `"false"` = no):
@@ -109,6 +112,7 @@ All preference tags follow **strict tri-state nullability** (absence of tag = un
     ["g", "dp"],
     ["g", "dp3"],
     ["g", "dp3w"],
+    ["g", "dp3wh"],
     ["origin_lat", "41.8781"],
     ["origin_lon", "-87.6298"],
     ["start", "1793577600"],

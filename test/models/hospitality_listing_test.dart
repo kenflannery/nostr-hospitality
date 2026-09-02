@@ -244,5 +244,46 @@ void main() {
       final endTag = event.tags.firstWhere((t) => t.isNotEmpty && t[0] == 'end');
       expect(endTag[1], '1730764800');
     });
+
+    test('Geohash Privacy: 5-char geohashes emit 5 cascading g tags, and >5 char geohashes truncate to 5', () {
+      final listing5 = HospitalityListing(
+        eventId: '',
+        authorPubkey: authorHex,
+        dTag: 'trip-seattle',
+        title: 'Trip to Seattle',
+        summary: 'Visiting Capitol Hill',
+        content: 'Exploring Seattle neighborhoods.',
+        location: 'Seattle, WA, USA',
+        geohash: 'c23nb',
+        status: NostrConstants.statusActive,
+        publishedAt: DateTime.now(),
+        createdAt: DateTime.now(),
+      );
+
+      expect(listing5.privacyGeohash, 'c23nb');
+      final event5 = listing5.toNip01Event(authorPubkey: authorHex);
+      final gTags5 = event5.tags.where((t) => t.isNotEmpty && t[0] == 'g').map((t) => t[1]).toList();
+      expect(gTags5, ['c', 'c2', 'c23', 'c23n', 'c23nb']);
+
+      // Excessive precision (e.g. 7 characters) must truncate to 5 for neighborhood privacy
+      final listing7 = HospitalityListing(
+        eventId: '',
+        authorPubkey: authorHex,
+        dTag: 'listing-too-precise',
+        title: 'Listing',
+        summary: 'Summary',
+        content: 'Content',
+        location: 'Seattle, WA, USA',
+        geohash: 'c23nb78',
+        status: NostrConstants.statusActive,
+        publishedAt: DateTime.now(),
+        createdAt: DateTime.now(),
+      );
+
+      expect(listing7.privacyGeohash, 'c23nb');
+      final event7 = listing7.toNip01Event(authorPubkey: authorHex);
+      final gTags7 = event7.tags.where((t) => t.isNotEmpty && t[0] == 'g').map((t) => t[1]).toList();
+      expect(gTags7, ['c', 'c2', 'c23', 'c23n', 'c23nb']);
+    });
   });
 }

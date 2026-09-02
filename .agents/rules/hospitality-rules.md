@@ -34,7 +34,7 @@ Whenever any Nostr Event Kind, tag name, allowed value, or protocol structure is
 ### Kind 30402: Hospitality Classified Listing (NIP-99)
 - Parameterized addressable event (`d: <pubkey>-home`).
 - Topics: `["t", "hospitality"]` and `["t", "Home"]`.
-- **4-Character Geohash Privacy**: Host street addresses are strictly protected by truncating `g` tags to **4 characters maximum** (`c`, `c2`, `c23`, `c23n` ~20-40km area). Exact coordinates are NEVER published to relays. `origin_lat`/`origin_lon` represent the 4-char geohash box center.
+- **Geohash Privacy**: Host and traveler street addresses are strictly protected by bounding `g` tags between **3 to 5 characters** (defaulting to 5 characters `~5km` neighborhood area; 4 characters `~20-40km` city area; 3 characters `~150km` regional area). Exact street coordinates are NEVER published to relays. `origin_lat`/`origin_lon` represent the geohash bounding box center.
 - **Tri-State Preference Tags**: Standard tags (`max_guests`, `last_minute`, `wheelchair`, `tent_camping`, `kids_allowed`, `pets_allowed`, `drinking_allowed`, `smoking_allowed`, `sleeping_arrangement`, `parking`, `has_housemates`, `has_kids`, `has_pets`, `host_drinks`, `host_smokes`). Absence of tag = unspecified; `"true"` = yes; `"false"` = no.
 
 ### Kind 30602: Travel & Community Profile (Draft NIP)

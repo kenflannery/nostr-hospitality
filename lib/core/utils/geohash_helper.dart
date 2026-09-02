@@ -18,8 +18,8 @@ class CitySearchResult {
 
 /// Pure Dart implementation of standard Base32 Geohash encoding, decoding, and area bounding.
 ///
-/// Follows the Nostr hospitality / classifieds privacy policy where host locations
-/// are bounded to a maximum of 4 characters (~39km x 19.5km bounding box).
+/// Follows the Nostr hospitality / classifieds privacy policy where locations
+/// are bounded to 3 to 5 characters (defaulting to 5 characters, ~5km neighborhood box).
 class GeohashHelper {
   GeohashHelper._();
 
@@ -29,8 +29,8 @@ class GeohashHelper {
   };
 
   /// Encodes latitude and longitude into a geohash string of [precision] characters.
-  /// Defaults to 4 characters for Kind 30402 homeshare privacy.
-  static String encode(double latitude, double longitude, {int precision = 4}) {
+  /// Defaults to 5 characters for Kind 30402 homeshare neighborhood privacy (~5km box).
+  static String encode(double latitude, double longitude, {int precision = 5}) {
     if (latitude < -90.0 || latitude > 90.0) {
       throw ArgumentError('Latitude must be between -90 and 90');
     }
@@ -146,8 +146,8 @@ class GeohashHelper {
   }
 
   /// Generates cascading prefix geohashes up to [maxPrecision] for Nostr `g` tag spatial queries.
-  /// (e.g. "c23n" -> ["c", "c2", "c23", "c23n"])
-  static List<String> cascadingPrefixes(String geohash, {int maxPrecision = 4}) {
+  /// (e.g. "c23nb" -> ["c", "c2", "c23", "c23n", "c23nb"])
+  static List<String> cascadingPrefixes(String geohash, {int maxPrecision = 5}) {
     final clean = geohash.trim().toLowerCase();
     final limit = clean.length < maxPrecision ? clean.length : maxPrecision;
     final prefixes = <String>[];
@@ -207,7 +207,7 @@ class GeohashHelper {
                 ? '${parts[0]}, ${parts[1]}, ${parts.last}'
                 : name;
 
-            final g = encode(lat, lon, precision: 4);
+            final g = encode(lat, lon, precision: 5);
 
             // Avoid duplicate entries
             if (!results.any((r) => r.geohash == g)) {
@@ -232,22 +232,22 @@ class GeohashHelper {
 
   /// Sample known city coordinates for offline fallback and quick suggestions.
   static const Map<String, ({double lat, double lon, String geohash})> defaultLocations = {
-    'Seattle, WA, USA': (lat: 47.6062, lon: -122.3321, geohash: 'c23n'),
-    'Portland, OR, USA': (lat: 45.5152, lon: -122.6784, geohash: 'c20f'),
-    'San Francisco, CA, USA': (lat: 37.7749, lon: -122.4194, geohash: '9q8y'),
-    'Los Angeles, CA, USA': (lat: 34.0522, lon: -118.2437, geohash: '9q5c'),
-    'Austin, TX, USA': (lat: 30.2672, lon: -97.7431, geohash: '9v6k'),
-    'Denver, CO, USA': (lat: 39.7392, lon: -104.9903, geohash: '9xj3'),
-    'New York, NY, USA': (lat: 40.7128, lon: -74.0060, geohash: 'dr5r'),
-    'Vancouver, BC, Canada': (lat: 49.2827, lon: -123.1207, geohash: 'c2b2'),
-    'Mexico City, Mexico': (lat: 19.4326, lon: -99.1332, geohash: '9g3w'),
-    'Berlin, Germany': (lat: 52.5200, lon: 13.4050, geohash: 'u33d'),
-    'London, UK': (lat: 51.5074, lon: -0.1278, geohash: 'gcpu'),
-    'Paris, France': (lat: 48.8566, lon: 2.3522, geohash: 'u09t'),
-    'Barcelona, Spain': (lat: 41.3879, lon: 2.1699, geohash: 'sp3e'),
-    'Rome, Italy': (lat: 41.9028, lon: 12.4964, geohash: 'sr2y'),
-    'Tokyo, Japan': (lat: 35.6762, lon: 139.6503, geohash: 'xn77'),
-    'Buenos Aires, Argentina': (lat: -34.6037, lon: -58.3816, geohash: '69y7'),
-    'Sydney, Australia': (lat: -33.8688, lon: 151.2093, geohash: 'r3gx'),
+    'Seattle, WA, USA': (lat: 47.6062, lon: -122.3321, geohash: 'c23nb'),
+    'Portland, OR, USA': (lat: 45.5152, lon: -122.6784, geohash: 'c20fb'),
+    'San Francisco, CA, USA': (lat: 37.7749, lon: -122.4194, geohash: '9q8yy'),
+    'Los Angeles, CA, USA': (lat: 34.0522, lon: -118.2437, geohash: '9q5ct'),
+    'Austin, TX, USA': (lat: 30.2672, lon: -97.7431, geohash: '9v6kn'),
+    'Denver, CO, USA': (lat: 39.7392, lon: -104.9903, geohash: '9xj3v'),
+    'New York, NY, USA': (lat: 40.7128, lon: -74.0060, geohash: 'dr5re'),
+    'Vancouver, BC, Canada': (lat: 49.2827, lon: -123.1207, geohash: 'c2b2q'),
+    'Mexico City, Mexico': (lat: 19.4326, lon: -99.1332, geohash: '9g3w4'),
+    'Berlin, Germany': (lat: 52.5200, lon: 13.4050, geohash: 'u33dc'),
+    'London, UK': (lat: 51.5074, lon: -0.1278, geohash: 'gcpvj'),
+    'Paris, France': (lat: 48.8566, lon: 2.3522, geohash: 'u09tv'),
+    'Barcelona, Spain': (lat: 41.3879, lon: 2.1699, geohash: 'sp3e5'),
+    'Rome, Italy': (lat: 41.9028, lon: 12.4964, geohash: 'sr2yk'),
+    'Tokyo, Japan': (lat: 35.6762, lon: 139.6503, geohash: 'xn774'),
+    'Buenos Aires, Argentina': (lat: -34.6037, lon: -58.3816, geohash: '69y7p'),
+    'Sydney, Australia': (lat: -33.8688, lon: 151.2093, geohash: 'r3gx2'),
   };
 }

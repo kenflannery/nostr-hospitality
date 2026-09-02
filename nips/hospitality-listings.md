@@ -16,7 +16,7 @@ It establishes bidirectional classified exchange:
 1. **Hosting Offers**: Hosts offering accommodation (couches, private rooms, house swaps, tent space).
 2. **Stay Requests (Public Trips)**: Travelers posting destination stay requests with date ranges and party sizes.
 3. **Temporal Availability (`start` / `end`)**: Standardized unix timestamps for trip schedules and temporary hosting windows.
-4. **Privacy-Preserving Geohashes**: Bounding host and traveler coordinates strictly to 4-character geohashes (~20–40km) with cascading prefix tags.
+4. **Privacy-Preserving Geohashes**: Bounding host and traveler coordinates to 3 to 5 character geohashes (defaulting to 5 characters, ~5km neighborhood/district box) with cascading prefix tags.
 5. **Tri-State Preferences & Household Schema**: A structured schema for sleeping arrangements, household reality, accessibility, and house rules.
 6. **Non-Commercial Open Access**: Standardized zero-pricing tags for gift-economy hospitality.
 
@@ -53,15 +53,19 @@ To support time-bound travel plans and temporary hosting availability windows wi
 ## Geohash Privacy Policy
 
 To protect host and traveler safety and prevent public broadcasting of exact residential or lodging coordinates:
-- **Maximum Geohash Precision**: Geohashes **MUST NOT** exceed **4 characters** (e.g. `c23n` or `dp3w`), representing an approximate ~39km × 19.5km bounding box.
+- **Configurable Precision (3 to 5 characters)**:
+  - **Precision 5 (Default / Recommended)**: ~4.9km × 4.9km bounding box (~5km area). Identifies the neighborhood or district while completely concealing exact street addresses.
+  - **Precision 4**: ~39km × 19.5km bounding box (~20–40km area). Covers a city or metropolitan area.
+  - **Precision 3**: ~156km × 156km bounding box (~150km area). Broad regional area for maximum geographic obscurity.
 - **Cascading `g` Tags**: Listings **MUST** emit hierarchical prefix `g` tags for multi-resolution relay search:
   ```json
   ["g", "c"],
   ["g", "c2"],
   ["g", "c23"],
-  ["g", "c23n"]
+  ["g", "c23n"],
+  ["g", "c23nb"]
   ```
-- **Approximate Center (`origin_lat` / `origin_lon`)**: Coordinates point to the centroid of the 4-character geohash bounding box, enabling simple map placement without exposing exact street locations.
+- **Approximate Center (`origin_lat` / `origin_lon`)**: Coordinates point to the centroid of the geohash bounding box, enabling simple map placement without exposing exact street locations.
 
 ---
 
@@ -119,6 +123,7 @@ All boolean and categorical preference tags follow **strict tri-state nullabilit
     ["g", "c2"],
     ["g", "c23"],
     ["g", "c23n"],
+    ["g", "c23nb"],
     ["origin_lat", "47.6367"],
     ["origin_lon", "-122.3438"],
     ["max_guests", "2"],
@@ -162,6 +167,7 @@ All boolean and categorical preference tags follow **strict tri-state nullabilit
     ["g", "dp"],
     ["g", "dp3"],
     ["g", "dp3w"],
+    ["g", "dp3wh"],
     ["origin_lat", "41.8781"],
     ["origin_lon", "-87.6298"],
     ["start", "1793577600"],
