@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../../core/services/update_checker_service.dart';
 
 /// Comprehensive developer & traveler reference guide for Hospitality Libre.
 class AboutPage extends StatefulWidget {
@@ -81,6 +83,10 @@ class _AboutPageState extends State<AboutPage>
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
+          const SizedBox(height: 20),
+
+          // Android Distribution & Download Section
+          _buildAndroidDownloadSection(context, theme, isDark),
           const SizedBox(height: 24),
 
           _buildFeatureCard(
@@ -105,7 +111,7 @@ class _AboutPageState extends State<AboutPage>
             icon: Icons.security_rounded,
             title: 'Geohash Privacy Protection',
             description:
-                'Host locations are strictly bounded to a 4-character geohash (~20-40km area). Your exact home address is never exposed on the public network.',
+                'Host locations are bounded between 3 to 5 characters (defaulting to ~5km neighborhood box). Your exact street address is strictly protected and never published.',
           ),
           _buildFeatureCard(
             context,
@@ -141,6 +147,131 @@ class _AboutPageState extends State<AboutPage>
             style: theme.textTheme.bodyMedium?.copyWith(height: 1.6),
           ),
           const SizedBox(height: 32),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAndroidDownloadSection(
+      BuildContext context, ThemeData theme, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(18.0),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primaryContainer.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: theme.colorScheme.primary.withValues(alpha: 0.4),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.android_rounded,
+                    color: theme.colorScheme.primary, size: 26),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Get the Android App',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      '100% Free & Open-Source (FOSS) • No Google Play Required',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Hospitality Libre is distributed independently without corporate trackers, Google Play account requirements, or middlemen. Anyone can install the Android APK directly.',
+            style: theme.textTheme.bodyMedium?.copyWith(height: 1.45),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surface,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: theme.colorScheme.outlineVariant),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.info_outline_rounded,
+                        size: 18, color: theme.colorScheme.primary),
+                    const SizedBox(width: 8),
+                    Text(
+                      'How to Install & Update Outside Google Play:',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        color: theme.colorScheme.onSurface,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  '1. Tap "Download Android APK" below and open the downloaded file.\n'
+                  '2. If Android prompts "Install unknown apps", tap Settings and allow "From this source".\n'
+                  '3. Built-in updates: The app checks for protocol updates automatically, or you can manage releases with Obtainium or F-Droid.',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    height: 1.45,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              FilledButton.icon(
+                onPressed: () {
+                  launchUrl(
+                    Uri.parse(
+                        'https://github.com/${UpdateCheckerService.repoOwner}/${UpdateCheckerService.repoName}/releases/latest/download/hospitality-libre-latest.apk'),
+                    mode: LaunchMode.externalApplication,
+                  );
+                },
+                icon: const Icon(Icons.download_rounded, size: 18),
+                label: const Text('Download Android APK'),
+              ),
+              OutlinedButton.icon(
+                onPressed: () {
+                  launchUrl(
+                    Uri.parse(UpdateCheckerService.releasesWebUrl),
+                    mode: LaunchMode.externalApplication,
+                  );
+                },
+                icon: const Icon(Icons.open_in_new_rounded, size: 16),
+                label: const Text('View All Releases'),
+              ),
+            ],
+          ),
         ],
       ),
     );

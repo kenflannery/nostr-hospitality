@@ -16,6 +16,7 @@ import '../nostr/relay_config.dart';
 import '../nostr/signer_service.dart';
 import '../nostr/signers/nip07_signer.dart';
 import '../services/media_upload_service.dart';
+import '../services/update_checker_service.dart';
 
 // --- Base Infrastructure Providers ---
 
@@ -259,4 +260,10 @@ final nip07Nip44SupportedProvider =
     return true;
   }
   return Nip07Signer.isNip44Supported();
+});
+
+/// App update and version check provider
+final appUpdateInfoProvider =
+    FutureProvider.autoDispose<AppUpdateInfo>((ref) async {
+  return UpdateCheckerService.checkLatestRelease();
 });
