@@ -4,7 +4,7 @@ trigger: always_on
 
 # Hospitality Libre Architecture & Development Rules
 
-Hospitality Libre is a 100% Nostr-native, decentralized hospitality, travel community, and interpersonal reputation application built with Flutter.
+Hospitality Libre is a 100% Nostr-native, decentralized hospitality, travel community, and interpersonal reputation application built with Flutter, feature-first, clean architecture.
 
 ---
 
@@ -86,11 +86,3 @@ Whenever any Nostr Event Kind, tag name, allowed value, or protocol structure is
   - `wss://relay.trustroots.org`
 - If an account has never published Kind 10050 DM relays, seed fallback relay lists into NDK cache (`ensureUserRelayListInCache`) to prevent lookup crashes.
 - Direct query fallback queries `Kind 1059` events from configured relays and parses via `ndk.dms.parseWrappedMessage`.
-
----
-
-## 5. Quality & Verification Standards
-
-- **Code Quality**: Keep the codebase clean with 0 `dart analyze` issues.
-- **Automated Tests**: Maintain unit and widget tests in `test/`. Run `flutter test` after modifying models, parsers, or repositories to ensure all test suites pass.
-- **Design System**: Use `Theme.of(context).colorScheme` semantic tokens, responsive layouts, and `flutter_map` with OpenStreetMap attribution guidelines.
