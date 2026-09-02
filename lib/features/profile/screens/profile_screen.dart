@@ -7,6 +7,7 @@ import '../../../core/utils/date_formatter.dart';
 import '../../../core/utils/nip19_utils.dart';
 import '../../../models/travel_profile.dart';
 import '../../../models/user_profile.dart';
+import '../../../widgets/raw_event_viewer_dialog.dart';
 import '../../../widgets/user_avatar.dart';
 import '../../auth/screens/login_screen.dart';
 import '../../listings/screens/listing_detail_screen.dart';
@@ -95,7 +96,7 @@ class ProfileScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Text(isOwnProfile ? 'My Profile' : profile.bestName),
         actions: [
-          if (isOwnProfile) ...[
+          if (isOwnProfile)
             IconButton(
               icon: const Icon(Icons.settings_outlined),
               tooltip: 'Settings & Relays',
@@ -105,7 +106,68 @@ class ProfileScreen extends ConsumerWidget {
                 );
               },
             ),
-          ],
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert_rounded),
+            tooltip: 'More options & Developer data',
+            onSelected: (value) {
+              if (value == 'raw_kind0') {
+                showRawEventDialog(
+                  context,
+                  title: 'Kind 0 Metadata (${profile.bestName})',
+                  event: profile,
+                  description: 'NIP-01 User Metadata Event',
+                );
+              } else if (value == 'raw_kind30602' && travelProfile != null) {
+                showRawEventDialog(
+                  context,
+                  title: 'Kind 30602 Travel Profile',
+                  event: travelProfile,
+                  description: 'Travel & Community Profile Event',
+                );
+              } else if (value == 'raw_kind30402' && hostingOffer != null) {
+                showRawEventDialog(
+                  context,
+                  title: 'Kind 30402 Hosting Offer',
+                  event: hostingOffer,
+                  description: 'NIP-99 Classified Listing Event',
+                );
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'raw_kind0',
+                child: Row(
+                  children: [
+                    Icon(Icons.code_rounded, size: 18),
+                    SizedBox(width: 8),
+                    Expanded(child: Text('Raw Profile (Kind 0)')),
+                  ],
+                ),
+              ),
+              if (travelProfile != null)
+                const PopupMenuItem(
+                  value: 'raw_kind30602',
+                  child: Row(
+                    children: [
+                      Icon(Icons.code_rounded, size: 18),
+                      SizedBox(width: 8),
+                      Expanded(child: Text('Raw Travel Profile (30602)')),
+                    ],
+                  ),
+                ),
+              if (hostingOffer != null)
+                const PopupMenuItem(
+                  value: 'raw_kind30402',
+                  child: Row(
+                    children: [
+                      Icon(Icons.code_rounded, size: 18),
+                      SizedBox(width: 8),
+                      Expanded(child: Text('Raw Hosting Offer (30402)')),
+                    ],
+                  ),
+                ),
+            ],
+          ),
         ],
       ),
       body: RefreshIndicator(

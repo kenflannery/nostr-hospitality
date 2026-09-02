@@ -4,6 +4,7 @@ import '../../../core/providers/app_providers.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/date_formatter.dart';
 import '../../../models/hospitality_listing.dart';
+import '../../../widgets/raw_event_viewer_dialog.dart';
 import '../../../widgets/user_avatar.dart';
 import '../../messaging/screens/chat_screen.dart';
 import '../../profile/screens/profile_screen.dart';
@@ -151,6 +152,16 @@ class ListingDetailScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Text(listing.isRequest ? 'Travel Stay Request' : 'Accommodation Offer'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.code_rounded),
+            tooltip: 'View Raw Event (Kind 30402)',
+            onPressed: () => showRawEventDialog(
+              context,
+              title: listing.isRequest ? 'Kind 30402 Stay Request' : 'Kind 30402 Accommodation Offer',
+              event: listing,
+              description: 'NIP-99 Classified Listing Event',
+            ),
+          ),
           if (isOwnListing)
             IconButton(
               icon: const Icon(Icons.edit_outlined),
@@ -655,6 +666,17 @@ class ListingDetailScreen extends ConsumerWidget {
                       fontSize: 11,
                       color: theme.colorScheme.outline,
                     ),
+                  ),
+                  const SizedBox(height: 14),
+                  OutlinedButton.icon(
+                    onPressed: () => showRawEventDialog(
+                      context,
+                      title: listing.isRequest ? 'Kind 30402 Stay Request' : 'Kind 30402 Hosting Offer',
+                      event: listing,
+                      description: 'NIP-99 Classified Listing Event',
+                    ),
+                    icon: const Icon(Icons.code_rounded, size: 16),
+                    label: const Text('View Raw Nostr Event (JSON)'),
                   ),
                   const SizedBox(height: 40),
                 ],

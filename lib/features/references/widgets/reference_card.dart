@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/utils/date_formatter.dart';
 import '../../../models/interaction_reference.dart';
+import '../../../widgets/raw_event_viewer_dialog.dart';
 import '../../../widgets/role_badge.dart';
 import '../../../widgets/sentiment_badge.dart';
 import '../../../widgets/user_avatar.dart';
@@ -85,11 +86,30 @@ class ReferenceCard extends ConsumerWidget {
                     ],
                   ),
                 ),
-                Text(
-                  DateFormatter.formatRelative(reference.createdAt),
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: theme.colorScheme.outline,
-                  ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      DateFormatter.formatRelative(reference.createdAt),
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.outline,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    IconButton(
+                      icon: const Icon(Icons.code_rounded, size: 16),
+                      tooltip: 'View Raw Event (Kind 7654)',
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () => showRawEventDialog(
+                        context,
+                        title: 'Kind 7654 Interaction Reference',
+                        event: reference,
+                        description: 'NIP-Draft Interaction Reference Event',
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
