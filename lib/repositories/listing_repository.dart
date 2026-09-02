@@ -4,6 +4,13 @@ import '../core/constants/nostr_constants.dart';
 import '../core/nostr/nostr_service.dart';
 import '../models/hospitality_listing.dart';
 
+/// Filter for listing classification intent (Offer vs. Request).
+enum ListingTypeFilter {
+  all,
+  offersOnly,
+  requestsOnly,
+}
+
 /// Repository for creating, updating, and querying NIP-99 Kind 30402 hospitality listings.
 class ListingRepository {
   final NostrService _nostrService;
@@ -13,6 +20,7 @@ class ListingRepository {
   /// Streams available hospitality listings from relays and cache.
   Stream<List<HospitalityListing>> getHospitalityListingsStream({
     String? locationFilter,
+    ListingTypeFilter typeFilter = ListingTypeFilter.all,
     int limit = 50,
   }) {
     final filter = Filter(
@@ -27,8 +35,14 @@ class ListingRepository {
 
     void emitCurrent() {
       if (controller.isClosed) return;
-      final list = listingsMap.values.toList()
+      var list = listingsMap.values.toList()
         ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+      if (typeFilter == ListingTypeFilter.offersOnly) {
+        list = list.where((l) => l.isOffer).toList();
+      } else if (typeFilter == ListingTypeFilter.requestsOnly) {
+        list = list.where((l) => l.isRequest).toList();
+      }
 
       if (locationFilter != null && locationFilter.trim().isNotEmpty) {
         final query = locationFilter.toLowerCase();
@@ -80,38 +94,96 @@ class ListingRepository {
     return controller.stream;
   }
 
-  /// Fetches a single hosting offer for a specific author pubkey.
-  Future<HospitalityListing?> getListingForAuthor(String authorPubkey) async {
+  /// Streams all listings (both hosting offers and stay requests) published by an author.
+  Stream<List<HospitalityListing>> getAuthorListingsStream(String authorPubkey) {
     final filter = Filter(
       kinds: [NostrConstants.classifiedListingKind],
       authors: [authorPubkey],
       tTags: [NostrConstants.topicHospitality],
-      limit: 10,
+      limit: 20,
     );
 
-    HospitalityListing? latest;
+    final controller = StreamController<List<HospitalityListing>>();
+    final Map<String, HospitalityListing> listingsMap = {};
+    bool hasEmitted = false;
+
+    void emitCurrent() {
+      if (controller.isClosed) return;
+      final list = listingsMap.values.toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      controller.add(list);
+      hasEmitted = true;
+    }
+
+    final timer = Timer(const Duration(milliseconds: 1000), () {
+      if (!hasEmitted && !controller.isClosed) {
+        emitCurrent();
+      }
+    });
+
+    final sub = _nostrService.queryEvents(filters: [filter]).listen(
+      (event) {
+        final listing = HospitalityListing.fromNip01Event(event);
+        if (listing != null) {
+          final existing = listingsMap[listing.dTag];
+          if (existing == null || listing.createdAt.isAfter(existing.createdAt)) {
+            listingsMap[listing.dTag] = listing;
+            emitCurrent();
+          }
+        }
+      },
+      onError: (_) {
+        if (!controller.isClosed) {
+          if (!hasEmitted) emitCurrent();
+        }
+      },
+      onDone: () {
+        if (!hasEmitted) emitCurrent();
+        if (!controller.isClosed) controller.close();
+      },
+    );
+
+    controller.onCancel = () {
+      timer.cancel();
+      sub.cancel();
+    };
+
+    return controller.stream;
+  }
+
+  /// Fetches all listings published by a specific author.
+  Future<List<HospitalityListing>> getListingsForAuthor(String authorPubkey) async {
+    final filter = Filter(
+      kinds: [NostrConstants.classifiedListingKind],
+      authors: [authorPubkey],
+      tTags: [NostrConstants.topicHospitality],
+      limit: 20,
+    );
+
+    final Map<String, HospitalityListing> listingsMap = {};
 
     try {
-      final completer = Completer<HospitalityListing?>();
-      final events = <Nip01Event>[];
+      final completer = Completer<List<HospitalityListing>>();
 
       final sub = _nostrService.queryEvents(filters: [filter]).listen(
         (event) {
-          events.add(event);
-        },
-        onDone: () {
-          for (final ev in events) {
-            final listing = HospitalityListing.fromNip01Event(ev);
-            if (listing != null) {
-              if (latest == null || listing.createdAt.isAfter(latest!.createdAt)) {
-                latest = listing;
-              }
+          final listing = HospitalityListing.fromNip01Event(event);
+          if (listing != null) {
+            final existing = listingsMap[listing.dTag];
+            if (existing == null || listing.createdAt.isAfter(existing.createdAt)) {
+              listingsMap[listing.dTag] = listing;
             }
           }
-          if (!completer.isCompleted) completer.complete(latest);
+        },
+        onDone: () {
+          if (!completer.isCompleted) {
+            final list = listingsMap.values.toList()
+              ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+            completer.complete(list);
+          }
         },
         onError: (_) {
-          if (!completer.isCompleted) completer.complete(null);
+          if (!completer.isCompleted) completer.complete([]);
         },
       );
 
@@ -119,20 +191,24 @@ class ListingRepository {
         const Duration(seconds: 3),
         onTimeout: () {
           sub.cancel();
-          for (final ev in events) {
-            final listing = HospitalityListing.fromNip01Event(ev);
-            if (listing != null) {
-              if (latest == null || listing.createdAt.isAfter(latest!.createdAt)) {
-                latest = listing;
-              }
-            }
-          }
-          return latest;
+          return listingsMap.values.toList()
+            ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
         },
       );
     } catch (_) {
-      return null;
+      return [];
     }
+  }
+
+  /// Fetches the primary hosting offer for a specific author pubkey.
+  /// Prefers an offer (`isOffer = true`), falling back to the latest listing.
+  Future<HospitalityListing?> getListingForAuthor(String authorPubkey) async {
+    final listings = await getListingsForAuthor(authorPubkey);
+    if (listings.isEmpty) return null;
+
+    // Prefer explicit offer
+    final offer = listings.where((l) => l.isOffer).firstOrNull;
+    return offer ?? listings.first;
   }
 
   /// Fetches a listing by its addressable coordinate "30402:`pubkey`:`d-tag`".

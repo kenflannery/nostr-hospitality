@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/date_formatter.dart';
 import '../../../core/utils/nip19_utils.dart';
 import '../../../models/travel_profile.dart';
 import '../../../models/user_profile.dart';
@@ -77,12 +78,16 @@ class ProfileScreen extends ConsumerWidget {
     final profileAsync = ref.watch(userProfileProvider(targetPubkey));
     final travelProfileAsync = ref.watch(userTravelProfileProvider(targetPubkey));
     final listingAsync = ref.watch(authorListingProvider(targetPubkey));
+    final authorListingsAsync = ref.watch(authorListingsStreamProvider(targetPubkey));
     final summaryAsync = ref.watch(userReferenceSummaryProvider(targetPubkey));
     final referencesStream = ref.watch(userReferencesStreamProvider(targetPubkey));
 
     final profile = profileAsync.valueOrNull ?? UserProfile(pubkey: targetPubkey);
     final travelProfile = travelProfileAsync.valueOrNull;
     final listing = listingAsync.valueOrNull;
+    final allAuthorListings = authorListingsAsync.valueOrNull ?? (listing != null ? [listing] : []);
+    final hostingOffer = allAuthorListings.where((l) => l.isOffer).firstOrNull ?? listing;
+    final travelRequests = allAuthorListings.where((l) => l.isRequest).toList();
     final summary = summaryAsync.valueOrNull;
     final references = referencesStream.valueOrNull ?? [];
 
@@ -108,6 +113,7 @@ class ProfileScreen extends ConsumerWidget {
           ref.invalidate(userProfileProvider(targetPubkey));
           ref.invalidate(userTravelProfileProvider(targetPubkey));
           ref.invalidate(authorListingProvider(targetPubkey));
+          ref.invalidate(authorListingsStreamProvider(targetPubkey));
           ref.invalidate(userReferenceSummaryProvider(targetPubkey));
           ref.invalidate(userReferencesStreamProvider(targetPubkey));
         },
@@ -416,18 +422,18 @@ class ProfileScreen extends ConsumerWidget {
                             onPressed: () {
                               Navigator.of(context).push(
                                 MaterialPageRoute(
-                                  builder: (_) => ListingEditorScreen(initialListing: listing),
+                                  builder: (_) => ListingEditorScreen(initialListing: hostingOffer, initialIsRequest: false),
                                 ),
                               );
                             },
-                            icon: Icon(listing == null ? Icons.add : Icons.edit, size: 16),
-                            label: Text(listing == null ? 'Create Offer' : 'Edit'),
+                            icon: Icon(hostingOffer == null ? Icons.add : Icons.edit, size: 16),
+                            label: Text(hostingOffer == null ? 'Create Offer' : 'Edit'),
                           ),
                       ],
                     ),
                     const SizedBox(height: 10),
 
-                    if (listing != null)
+                    if (hostingOffer != null)
                       Card(
                         margin: EdgeInsets.zero,
                         color: theme.colorScheme.surfaceContainerLow,
@@ -435,7 +441,7 @@ class ProfileScreen extends ConsumerWidget {
                           onTap: () {
                             Navigator.of(context).push(
                               MaterialPageRoute(
-                                builder: (_) => ListingDetailScreen(listing: listing),
+                                builder: (_) => ListingDetailScreen(listing: hostingOffer),
                               ),
                             );
                           },
@@ -450,15 +456,15 @@ class ProfileScreen extends ConsumerWidget {
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                       decoration: BoxDecoration(
-                                        color: listing.isActive
+                                        color: hostingOffer.isActive
                                             ? AppTheme.positiveGreen.withValues(alpha: 0.12)
                                             : Colors.grey.withValues(alpha: 0.12),
                                         borderRadius: BorderRadius.circular(6),
                                       ),
                                       child: Text(
-                                        listing.isActive ? 'Accepting Guests' : 'Inactive',
+                                        hostingOffer.isActive ? 'Accepting Guests' : 'Inactive',
                                         style: TextStyle(
-                                          color: listing.isActive ? AppTheme.positiveGreen : Colors.grey,
+                                          color: hostingOffer.isActive ? AppTheme.positiveGreen : Colors.grey,
                                           fontWeight: FontWeight.bold,
                                           fontSize: 11,
                                         ),
@@ -472,7 +478,7 @@ class ProfileScreen extends ConsumerWidget {
                                     ),
                                     const SizedBox(width: 4),
                                     Text(
-                                      listing.location,
+                                      hostingOffer.location,
                                       style: TextStyle(
                                         color: theme.colorScheme.onSurfaceVariant,
                                         fontSize: 12,
@@ -483,14 +489,31 @@ class ProfileScreen extends ConsumerWidget {
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
-                                  listing.title,
+                                  hostingOffer.title,
                                   style: theme.textTheme.titleMedium?.copyWith(
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
+                                if (hostingOffer.isDateConstrained) ...[
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      Icon(Icons.calendar_today_rounded, size: 12, color: theme.colorScheme.primary),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        DateFormatter.formatDateRange(hostingOffer.startDate, hostingOffer.endDate),
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: theme.colorScheme.primary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                                 const SizedBox(height: 4),
                                 Text(
-                                  listing.summary,
+                                  hostingOffer.summary,
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                   style: theme.textTheme.bodyMedium?.copyWith(
@@ -509,6 +532,151 @@ class ProfileScreen extends ConsumerWidget {
                           isOwnProfile
                               ? 'You have not published a hosting offer yet. Tap "Create Offer" to open your home to travelers.'
                               : 'This user does not currently have an active hosting offer.',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.outline,
+                          ),
+                        ),
+                      ),
+
+                    // --- SECTION: Travel Requests / Public Trips ---
+                    const SizedBox(height: 24),
+                    const Divider(),
+                    const SizedBox(height: 16),
+
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.luggage_rounded,
+                          color: Colors.teal,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Travel Requests & Trips',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const Spacer(),
+                        if (isOwnProfile)
+                          TextButton.icon(
+                            onPressed: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const ListingEditorScreen(initialIsRequest: true),
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.add, size: 16),
+                            label: const Text('Post Request'),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+
+                    if (travelRequests.isNotEmpty) ...[
+                      ...travelRequests.map((req) => Padding(
+                            padding: const EdgeInsets.only(bottom: 8.0),
+                            child: Card(
+                              margin: EdgeInsets.zero,
+                              color: theme.colorScheme.surfaceContainerLow,
+                              child: InkWell(
+                                onTap: () {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => ListingDetailScreen(listing: req),
+                                    ),
+                                  );
+                                },
+                                borderRadius: BorderRadius.circular(16),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: req.isActive
+                                                  ? Colors.teal.withValues(alpha: 0.15)
+                                                  : Colors.grey.withValues(alpha: 0.12),
+                                              borderRadius: BorderRadius.circular(6),
+                                            ),
+                                            child: Text(
+                                              req.isActive ? 'Active Trip' : 'Closed',
+                                              style: TextStyle(
+                                                color: req.isActive ? Colors.teal : Colors.grey,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 11,
+                                              ),
+                                            ),
+                                          ),
+                                          const Spacer(),
+                                          const Icon(
+                                            Icons.location_on_outlined,
+                                            size: 14,
+                                            color: Colors.teal,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            req.location,
+                                            style: TextStyle(
+                                              color: theme.colorScheme.onSurfaceVariant,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        req.title,
+                                        style: theme.textTheme.titleSmall?.copyWith(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      if (req.isDateConstrained) ...[
+                                        const SizedBox(height: 4),
+                                        Row(
+                                          children: [
+                                            Icon(Icons.calendar_today_rounded, size: 12, color: Colors.teal[700]),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              DateFormatter.formatDateRange(req.startDate, req.endDate),
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                                color: Colors.teal[700],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                      if (req.summary.isNotEmpty) ...[
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          req.summary,
+                                          style: theme.textTheme.bodySmall?.copyWith(
+                                            color: theme.colorScheme.onSurfaceVariant,
+                                          ),
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          )),
+                    ] else
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8.0),
+                        child: Text(
+                          isOwnProfile
+                              ? 'You have not posted any travel requests yet. Tap "Post Request" when visiting a new city!'
+                              : 'This user has no active travel stay requests.',
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.colorScheme.outline,
                           ),

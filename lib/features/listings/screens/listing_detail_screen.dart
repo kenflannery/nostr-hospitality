@@ -86,6 +86,16 @@ class ListingDetailScreen extends ConsumerWidget {
 
     // Collect active highlight pills
     final highlightPills = <Widget>[];
+    if (listing.isDateConstrained) {
+      highlightPills.add(
+        _buildHighlightPill(
+          theme,
+          Icons.calendar_today_rounded,
+          DateFormatter.formatDateRange(listing.startDate, listing.endDate),
+          color: Colors.teal[800],
+        ),
+      );
+    }
     if (listing.sleepingArrangement != null) {
       highlightPills.add(
         _buildHighlightPill(
@@ -100,7 +110,9 @@ class ListingDetailScreen extends ConsumerWidget {
         _buildHighlightPill(
           theme,
           Icons.people_outline_rounded,
-          'Max ${listing.maxGuests} ${listing.maxGuests == 1 ? 'Guest' : 'Guests'}',
+          listing.isRequest
+              ? '${listing.maxGuests} ${listing.maxGuests == 1 ? 'Traveler' : 'Travelers'}'
+              : 'Max ${listing.maxGuests} ${listing.maxGuests == 1 ? 'Guest' : 'Guests'}',
         ),
       );
     }
@@ -137,12 +149,12 @@ class ListingDetailScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Accommodation Offer'),
+        title: Text(listing.isRequest ? 'Travel Stay Request' : 'Accommodation Offer'),
         actions: [
           if (isOwnListing)
             IconButton(
               icon: const Icon(Icons.edit_outlined),
-              tooltip: 'Edit Offer',
+              tooltip: listing.isRequest ? 'Edit Request' : 'Edit Offer',
               onPressed: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(
@@ -190,7 +202,9 @@ class ListingDetailScreen extends ConsumerWidget {
                             ),
                             const SizedBox(width: 6),
                             Text(
-                              listing.isActive ? 'Accepting Guests' : 'Inactive',
+                              listing.isRequest
+                                  ? (listing.isActive ? 'Active Request' : 'Closed')
+                                  : (listing.isActive ? 'Accepting Guests' : 'Inactive'),
                               style: TextStyle(
                                 color: listing.isActive ? AppTheme.positiveGreen : Colors.grey,
                                 fontWeight: FontWeight.bold,
@@ -204,16 +218,29 @@ class ListingDetailScreen extends ConsumerWidget {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: theme.colorScheme.primaryContainer.withValues(alpha: 0.4),
+                          color: listing.isRequest
+                              ? Colors.teal.withValues(alpha: 0.15)
+                              : theme.colorScheme.primaryContainer.withValues(alpha: 0.4),
                           borderRadius: BorderRadius.circular(20),
                         ),
-                        child: Text(
-                          'Hospitality Stay',
-                          style: TextStyle(
-                            color: theme.colorScheme.primary,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              listing.isRequest ? Icons.luggage_rounded : Icons.roofing_rounded,
+                              size: 14,
+                              color: listing.isRequest ? Colors.teal : theme.colorScheme.primary,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              listing.isRequest ? 'Travel Request' : 'Hosting Offer',
+                              style: TextStyle(
+                                color: listing.isRequest ? Colors.teal : theme.colorScheme.primary,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -362,7 +389,7 @@ class ListingDetailScreen extends ConsumerWidget {
 
                   const SizedBox(height: 24),
 
-                  // Action Buttons: Message Host & Leave Reference
+                  // Action Buttons: Message / Offer & Leave Reference
                   if (!isOwnListing)
                     Row(
                       children: [
@@ -378,8 +405,8 @@ class ListingDetailScreen extends ConsumerWidget {
                                 ),
                               );
                             },
-                            icon: const Icon(Icons.mail_outline_rounded),
-                            label: const Text('Message Host'),
+                            icon: Icon(listing.isRequest ? Icons.handshake_outlined : Icons.mail_outline_rounded),
+                            label: Text(listing.isRequest ? 'Offer to Host' : 'Request to Stay'),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -401,13 +428,13 @@ class ListingDetailScreen extends ConsumerWidget {
                       ],
                     ),
 
-                  // Hosting Preferences & House Rules Section (Rendered only if tags present)
+                  // Hosting Preferences / Traveler Needs Section (Rendered only if tags present)
                   if (_hasAnyHostingPreferences()) ...[
                     const SizedBox(height: 24),
                     const Divider(),
                     const SizedBox(height: 16),
                     Text(
-                      'Hosting Preferences',
+                      listing.isRequest ? 'Travel Needs & Preferences' : 'Hosting Preferences',
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
@@ -495,8 +522,8 @@ class ListingDetailScreen extends ConsumerWidget {
                     ),
                   ],
 
-                  // My Home & Environment Section (Rendered only if tags present)
-                  if (_hasAnyHomeDetails()) ...[
+                  // My Home & Environment Section (Rendered only on offers if tags present)
+                  if (listing.isOffer && _hasAnyHomeDetails()) ...[
                     const SizedBox(height: 24),
                     const Divider(),
                     const SizedBox(height: 16),

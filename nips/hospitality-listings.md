@@ -1,4 +1,4 @@
-# NIP-99 Extension: Hospitality Hosting Profile
+# NIP-99 Extension: Hospitality Classified Listings (Offers & Requests)
 
 `draft` `optional`
 
@@ -10,29 +10,50 @@
 
 ## Abstract
 
-This document specifies how **NIP-99 Classified Listings** (`kind: 30402`) are tailored for open, sovereign hospitality and home sharing networks (decentralized Couchsurfing).
+This document specifies how **NIP-99 Classified Listings** (`kind: 30402`) are tailored for sovereign, decentralized hospitality networks (open Couchsurfing).
 
-It defines:
-1. **Privacy-Preserving Geohashes**: Bounding host coordinates strictly to 4-character geohashes (~20–40km) with cascading prefix tags.
-2. **Tri-State Household & Hosting Preferences**: A structured schema for sleeping arrangements, household reality, accessibility, and house rules.
-3. **Non-Commercial Open Access**: Standardized zero-pricing tags for gift-economy hospitality.
+It establishes bidirectional classified exchange:
+1. **Hosting Offers**: Hosts offering accommodation (couches, private rooms, house swaps, tent space).
+2. **Stay Requests (Public Trips)**: Travelers posting destination stay requests with date ranges and party sizes.
+3. **Temporal Availability (`start` / `end`)**: Standardized unix timestamps for trip schedules and temporary hosting windows.
+4. **Privacy-Preserving Geohashes**: Bounding host and traveler coordinates strictly to 4-character geohashes (~20–40km) with cascading prefix tags.
+5. **Tri-State Preferences & Household Schema**: A structured schema for sleeping arrangements, household reality, accessibility, and house rules.
+6. **Non-Commercial Open Access**: Standardized zero-pricing tags for gift-economy hospitality.
 
 ---
 
-## Category Tags
+## Classification Topic Tags (`t`)
 
-Hospitality listings publish standard NIP-99 category topic tags:
-```json
-["t", "hospitality"],
-["t", "Home"]
-```
+Listings declare their hospitality domain and listing intent via standard `t` tags:
+
+| Listing Intent | Topic Tags | Description |
+|---|---|---|
+| **Hosting Offer** | `["t", "hospitality"]`<br/>`["t", "hospitality-offer"]`<br/>`["t", "Home"]` | Host offering accommodation |
+| **Stay Request** | `["t", "hospitality"]`<br/>`["t", "hospitality-request"]` | Traveler seeking accommodation / host |
+
+### Absence Fallback Rule (Backwards Compatibility)
+If a `30402` listing includes `["t", "hospitality"]` but omits both `hospitality-offer` and `hospitality-request` tags, clients **MUST** treat the listing as a **Hosting Offer** (`hospitality-offer`).
+
+---
+
+## Temporal Date Tags (`start` / `end`)
+
+To support time-bound travel plans and temporary hosting availability windows without deleting historical records:
+
+| Tag | Value | Description |
+|---|---|---|
+| `start` | Unix timestamp string (e.g. `"1793577600"`) | Traveler arrival / check-in date, or start of temporary hosting window |
+| `end` | Unix timestamp string (e.g. `"1793836800"`) | Traveler departure / check-out date, or end of temporary hosting window |
+
+- **Open-ended hosting**: Ongoing residential hosts omit `start` and `end`.
+- **Relay History vs Expiration**: Instead of requiring NIP-40 auto-deletion, clients use `end` to transition listings from active discovery to past travel journals, preserving Kind 7654 review links.
 
 ---
 
 ## Geohash Privacy Policy
 
-To protect host safety and prevent public broadcasting of exact residential street coordinates:
-- **Maximum Geohash Precision**: Geohashes **MUST NOT** exceed **4 characters** (e.g. `c23n`), representing an approximate ~39km × 19.5km bounding box.
+To protect host and traveler safety and prevent public broadcasting of exact residential or lodging coordinates:
+- **Maximum Geohash Precision**: Geohashes **MUST NOT** exceed **4 characters** (e.g. `c23n` or `dp3w`), representing an approximate ~39km × 19.5km bounding box.
 - **Cascading `g` Tags**: Listings **MUST** emit hierarchical prefix `g` tags for multi-resolution relay search:
   ```json
   ["g", "c"],
@@ -40,11 +61,11 @@ To protect host safety and prevent public broadcasting of exact residential stre
   ["g", "c23"],
   ["g", "c23n"]
   ```
-- **Approximate Center (`origin_lat` / `origin_lon`)**: Coordinates point to the centroid of the 4-character geohash bounding box, enabling simple map placement without exposing exact home locations.
+- **Approximate Center (`origin_lat` / `origin_lon`)**: Coordinates point to the centroid of the 4-character geohash bounding box, enabling simple map placement without exposing exact street locations.
 
 ---
 
-## Hosting Preferences & Household Schema
+## Preferences & Household Schema
 
 All boolean and categorical preference tags follow **strict tri-state nullability**:
 - **Null / Absent**: Unspecified / Unknown (**no tag is emitted**)
@@ -55,15 +76,17 @@ All boolean and categorical preference tags follow **strict tri-state nullabilit
 
 | Tag Name | Value / Allowed Types | Description |
 |---|---|---|
-| `max_guests` | `"1"`, `"2"`, `"3"`, etc. | Maximum number of simultaneous guests accommodated |
+| `start` | Unix timestamp string | Arrival date or temporary hosting start |
+| `end` | Unix timestamp string | Departure date or temporary hosting end |
+| `max_guests` / `guests` | `"1"`, `"2"`, `"3"`, etc. | Maximum guests accommodated (offer) or traveling party size (request) |
 | `last_minute` | `"true"` \| `"false"` | Open to same-day / short-notice requests |
-| `wheelchair` | `"true"` \| `"false"` | Step-free or accessible accommodation |
-| `tent_camping` | `"true"` \| `"false"` | Yard / lawn space available for pitching tents |
-| `kids_allowed` | `"true"` \| `"false"` | Open to hosting families with children |
-| `pets_allowed` | `"true"` \| `"false"` | Open to hosting guests with pets |
-| `drinking_allowed` | `"true"` \| `"false"` | Guests permitted to drink alcohol |
-| `smoking_allowed` | `"no"` \| `"outside"` \| `"yes"` | Smoking policy for guests |
-| `sleeping_arrangement`| `"private_room"` \| `"shared_room"` \| `"couch"` \| `"common_room"` \| `"tent_space"` | Sleeping arrangement offered |
+| `wheelchair` | `"true"` \| `"false"` | Step-free or accessible accommodation needed / offered |
+| `tent_camping` | `"true"` \| `"false"` | Yard / lawn space available or acceptable for tents |
+| `kids_allowed` | `"true"` \| `"false"` | Open to hosting / traveling with children |
+| `pets_allowed` | `"true"` \| `"false"` | Open to hosting / traveling with pets |
+| `drinking_allowed` | `"true"` \| `"false"` | Guests permitted to drink alcohol / traveler drinks |
+| `smoking_allowed` | `"no"` \| `"outside"` \| `"yes"` | Smoking policy for guests / traveler smoking habit |
+| `sleeping_arrangement`| `"private_room"` \| `"shared_room"` \| `"couch"` \| `"common_room"` \| `"tent_space"` | Sleeping arrangement offered / acceptable |
 | `parking` | `"none"` \| `"free_on_premises"` \| `"street"` \| `"paid"` | Vehicle parking accessibility |
 | `parking_details` | string (e.g. `"Driveway parking available"`) | Specific instructions for guest vehicles |
 | `has_housemates` | `"true"` \| `"false"` | Host lives with other housemates/roommates |
@@ -74,20 +97,23 @@ All boolean and categorical preference tags follow **strict tri-state nullabilit
 
 ---
 
-## Example Payload
+## Example Payloads
+
+### 1. Hosting Offer Example
 ```json
 {
   "kind": 30402,
   "pubkey": "<host-pubkey-hex>",
   "content": "Cozy spare bedroom in central Seattle. Close to light rail, coffee shops, and parks. Always happy to share local travel tips!",
   "tags": [
-    ["d", "<unique-d-tag>"],
+    ["d", "<host-pubkey>-home"],
     ["title", "Cozy Guest Room in Seattle"],
     ["summary", "Private room for 1-2 travelers near transit."],
     ["location", "Seattle, Washington, United States"],
     ["status", "active"],
     ["price", "0", "USD"],
     ["t", "hospitality"],
+    ["t", "hospitality-offer"],
     ["t", "Home"],
     ["g", "c"],
     ["g", "c2"],
@@ -111,6 +137,38 @@ All boolean and categorical preference tags follow **strict tri-state nullabilit
     ["has_pets", "true"],
     ["host_drinks", "true"],
     ["host_smokes", "no"],
+    ["published_at", "1719234800"]
+  ],
+  "created_at": 1719234800
+}
+```
+
+### 2. Traveler Stay Request Example (Public Trip)
+```json
+{
+  "kind": 30402,
+  "pubkey": "<traveler-pubkey-hex>",
+  "content": "Visiting Chicago for the architecture biennial and local jazz scene. Looking for a host or local meetups near downtown/Lincoln Park!",
+  "tags": [
+    ["d", "trip-chicago-20261102"],
+    ["title", "Visiting Chicago for Architecture & Jazz"],
+    ["summary", "Solo traveler seeking 3 nights in Chicago."],
+    ["location", "Chicago, Illinois, United States"],
+    ["status", "active"],
+    ["price", "0", "USD"],
+    ["t", "hospitality"],
+    ["t", "hospitality-request"],
+    ["g", "d"],
+    ["g", "dp"],
+    ["g", "dp3"],
+    ["g", "dp3w"],
+    ["origin_lat", "41.8781"],
+    ["origin_lon", "-87.6298"],
+    ["start", "1793577600"],
+    ["end", "1793836800"],
+    ["max_guests", "1"],
+    ["pets_allowed", "false"],
+    ["wheelchair", "false"],
     ["published_at", "1719234800"]
   ],
   "created_at": 1719234800

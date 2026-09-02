@@ -196,7 +196,7 @@ class _ReferenceComposerScreenState
               ),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
-                value: _selectedContext,
+                initialValue: _selectedContext,
                 decoration: const InputDecoration(
                   prefixIcon: Icon(Icons.category_outlined),
                 ),
@@ -236,10 +236,10 @@ class _ReferenceComposerScreenState
                   padding:
                       const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.primaryContainer.withOpacity(0.3),
+                    color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                        color: theme.colorScheme.primary.withOpacity(0.4)),
+                        color: theme.colorScheme.primary.withValues(alpha: 0.4)),
                   ),
                   child: Row(
                     children: [
@@ -289,7 +289,7 @@ class _ReferenceComposerScreenState
               ),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
-                value: _selectedRole,
+                initialValue: _selectedRole,
                 decoration: const InputDecoration(
                   prefixIcon: Icon(Icons.badge_outlined),
                 ),

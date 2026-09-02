@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
 import '../../../core/constants/nostr_constants.dart';
 import '../../../core/providers/app_providers.dart';
@@ -9,20 +10,30 @@ import '../../../core/theme/map_tile_config.dart';
 import '../../../core/utils/geohash_helper.dart';
 import '../../../models/hospitality_listing.dart';
 
-/// Screen to create or edit a NIP-99 (Kind 30402) Hospitality Hosting Offer
-/// featuring a map-based area selector, nostr.build image upload, and tri-state preferences.
+/// Screen to create or edit a NIP-99 (Kind 30402) Hospitality Listing.
+///
+/// Supports both:
+/// 1. **Hosting Offers** (`hospitality-offer`): Hosts opening their homes.
+/// 2. **Travel Requests** (`hospitality-request`): Travelers posting time-bound stay requests (public trips).
 class ListingEditorScreen extends ConsumerStatefulWidget {
   final HospitalityListing? initialListing;
+  final bool initialIsRequest;
 
-  const ListingEditorScreen({super.key, this.initialListing});
+  const ListingEditorScreen({
+    super.key,
+    this.initialListing,
+    this.initialIsRequest = false,
+  });
 
   @override
-  ConsumerState<ListingEditorScreen> createState() => _ListingEditorScreenState();
+  ConsumerState<ListingEditorScreen> createState() =>
+      _ListingEditorScreenState();
 }
 
 class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
   final _formKey = GlobalKey<FormState>();
 
+  late bool _isRequest;
   late TextEditingController _titleController;
   late TextEditingController _summaryController;
   late TextEditingController _contentController;
@@ -36,6 +47,10 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
   bool _isSearchingCities = false;
   bool _isUploadingImage = false;
 
+  DateTime? _startDate;
+  DateTime? _endDate;
+  bool _isTemporaryHosting = false;
+
   final List<String> _images = [];
 
   String _currentLocationName = 'Seattle, WA, USA';
@@ -44,7 +59,7 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
 
   List<CitySearchResult> _citySuggestions = [];
 
-  // Hosting Preferences (Tri-state: null = unanswered, true = Yes, false = No)
+  // Hosting / Stay Preferences (Tri-state: null = unanswered, true = Yes, false = No)
   int? _maxGuests;
   bool? _acceptLastMinute;
   bool? _wheelchairAccessible;
@@ -54,7 +69,7 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
   bool? _okayWithDrinking;
   String? _okayWithSmoking; // null, 'no', 'outside', 'yes'
 
-  // Home Environment (Tri-state: null = unanswered, true = Yes, false = No)
+  // Home Environment / Accommodation Needs (Tri-state: null = unanswered, true = Yes, false = No)
   String? _sleepingArrangement;
   String? _parking;
   bool? _hasHousemates;
@@ -68,10 +83,17 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
     super.initState();
     final init = widget.initialListing;
 
+    _isRequest = init != null ? init.isRequest : widget.initialIsRequest;
+    _startDate = init?.startDate;
+    _endDate = init?.endDate;
+    _isTemporaryHosting =
+        !_isRequest && (_startDate != null || _endDate != null);
+
     _titleController = TextEditingController(text: init?.title ?? '');
     _summaryController = TextEditingController(text: init?.summary ?? '');
     _contentController = TextEditingController(text: init?.content ?? '');
-    _parkingDetailsController = TextEditingController(text: init?.parkingDetails ?? '');
+    _parkingDetailsController =
+        TextEditingController(text: init?.parkingDetails ?? '');
     _isActive = init?.isActive ?? true;
 
     if (init?.images != null) {
@@ -104,13 +126,18 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
         if (decoded != null) {
           _currentCenter = LatLng(decoded.latitude, decoded.longitude);
         }
-      } else if (init.effectiveLatitude != null && init.effectiveLongitude != null) {
-        _currentCenter = LatLng(init.effectiveLatitude!, init.effectiveLongitude!);
-        _currentGeohash = GeohashHelper.encode(_currentCenter.latitude, _currentCenter.longitude, precision: 4);
+      } else if (init.effectiveLatitude != null &&
+          init.effectiveLongitude != null) {
+        _currentCenter =
+            LatLng(init.effectiveLatitude!, init.effectiveLongitude!);
+        _currentGeohash = GeohashHelper.encode(
+            _currentCenter.latitude, _currentCenter.longitude,
+            precision: 4);
       }
     }
 
-    _locationSearchController = TextEditingController(text: _currentLocationName);
+    _locationSearchController =
+        TextEditingController(text: _currentLocationName);
   }
 
   @override
@@ -122,6 +149,39 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
     _parkingDetailsController.dispose();
     _mapController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickDate({required bool isStart}) async {
+    final now = DateTime.now();
+    final initialDate = isStart
+        ? (_startDate ?? now)
+        : (_endDate ?? (_startDate ?? now).add(const Duration(days: 3)));
+    final firstDate =
+        isStart ? now.subtract(const Duration(days: 30)) : (_startDate ?? now);
+    final lastDate = now.add(const Duration(days: 730));
+
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initialDate.isBefore(firstDate) ? firstDate : initialDate,
+      firstDate: firstDate,
+      lastDate: lastDate,
+    );
+
+    if (picked != null) {
+      setState(() {
+        if (isStart) {
+          _startDate = picked;
+          if (_endDate != null && _endDate!.isBefore(_startDate!)) {
+            _endDate = _startDate!.add(const Duration(days: 1));
+          }
+        } else {
+          _endDate = picked;
+          if (_startDate != null && _startDate!.isAfter(_endDate!)) {
+            _startDate = _endDate!.subtract(const Duration(days: 1));
+          }
+        }
+      });
+    }
   }
 
   Future<void> _pickAndUploadImage() async {
@@ -147,7 +207,8 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Photo uploaded to nostr.build successfully!')),
+          const SnackBar(
+              content: Text('Photo uploaded to nostr.build successfully!')),
         );
       }
     } catch (e) {
@@ -174,7 +235,7 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
           autofocus: true,
           decoration: const InputDecoration(
             labelText: 'Image HTTPS URL',
-            hintText: 'https://example.com/room.jpg',
+            hintText: 'https://example.com/photo.jpg',
             prefixIcon: Icon(Icons.link_rounded),
           ),
         ),
@@ -230,7 +291,8 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
   }
 
   void _onMapTapped(LatLng point) {
-    final geohash = GeohashHelper.encode(point.latitude, point.longitude, precision: 4);
+    final geohash =
+        GeohashHelper.encode(point.latitude, point.longitude, precision: 4);
     final decoded = GeohashHelper.decode(geohash);
 
     setState(() {
@@ -254,10 +316,13 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
     final theme = Theme.of(context);
     final isEditing = widget.initialListing != null;
     final polygonPoints = _getGeohashPolygonPoints();
+    final dateFormat = DateFormat.yMMMd();
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(isEditing ? 'Edit Hosting Offer' : 'Create Hosting Offer'),
+        title: Text(isEditing
+            ? (_isRequest ? 'Edit Travel Request' : 'Edit Hosting Offer')
+            : (_isRequest ? 'Post Travel Request' : 'Create Hosting Offer')),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 8.0),
@@ -267,7 +332,8 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
                   ? const SizedBox(
                       width: 16,
                       height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
                     )
                   : const Icon(Icons.check_rounded, size: 18),
               label: Text(isEditing ? 'Update' : 'Publish'),
@@ -280,6 +346,35 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
         child: ListView(
           padding: const EdgeInsets.all(20.0),
           children: [
+            // Listing Type Selector (Offer vs. Request)
+            if (!isEditing) ...[
+              SegmentedButton<bool>(
+                segments: const [
+                  ButtonSegment<bool>(
+                    value: false,
+                    label: Text('Hosting Offer'),
+                    icon: Icon(Icons.roofing_rounded),
+                  ),
+                  ButtonSegment<bool>(
+                    value: true,
+                    label: Text('Travel Request'),
+                    icon: Icon(Icons.luggage_rounded),
+                  ),
+                ],
+                selected: {_isRequest},
+                onSelectionChanged: (set) {
+                  setState(() {
+                    _isRequest = set.first;
+                    if (_isRequest && _titleController.text.isEmpty) {
+                      _titleController.text =
+                          'Looking for a host in $_currentLocationName';
+                    }
+                  });
+                },
+              ),
+              const SizedBox(height: 16),
+            ],
+
             // Status Switch Card
             Card(
               margin: EdgeInsets.zero,
@@ -288,44 +383,119 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
                   : theme.colorScheme.surfaceContainerLow,
               child: SwitchListTile(
                 title: Text(
-                  _isActive ? 'Currently Accepting Guests (Active)' : 'Not Accepting Guests (Inactive / Sold)',
+                  _isRequest
+                      ? (_isActive
+                          ? 'Active Travel Request (Seeking Host)'
+                          : 'Request Closed / Cancelled')
+                      : (_isActive
+                          ? 'Currently Accepting Guests (Active)'
+                          : 'Not Accepting Guests (Inactive / Sold)'),
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 subtitle: Text(
-                  _isActive
-                      ? 'Your offer is discoverable by travelers on open Nostr relays.'
-                      : 'Hidden from active searches until you re-enable it.',
+                  _isRequest
+                      ? (_isActive
+                          ? 'Discoverable by local hosts in this destination on Nostr relays.'
+                          : 'Hidden from active searches.')
+                      : (_isActive
+                          ? 'Your offer is discoverable by travelers on open Nostr relays.'
+                          : 'Hidden from active searches until you re-enable it.'),
                 ),
                 value: _isActive,
                 onChanged: (val) => setState(() => _isActive = val),
                 activeThumbColor: theme.colorScheme.primary,
               ),
             ),
-            const SizedBox(height: 24),
-
-            // Listing Title
-            Text('Listing Title', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 6),
-            TextFormField(
-              controller: _titleController,
-              decoration: const InputDecoration(
-                hintText: 'e.g. Spare Guest Room near Downtown Seattle',
-                prefixIcon: Icon(Icons.title_rounded),
-              ),
-              validator: (v) => (v == null || v.trim().isEmpty) ? 'Please provide a listing title' : null,
-            ),
             const SizedBox(height: 20),
 
-            // Short Summary
-            Text('Short Summary', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 6),
-            TextFormField(
-              controller: _summaryController,
-              decoration: const InputDecoration(
-                hintText: 'e.g. Cozy private room with queen bed, fast Wi-Fi, and bike access',
-                prefixIcon: Icon(Icons.short_text_rounded),
+            // Date Range Section (Required/Recommended for Request, Optional for Offer)
+            Card(
+              margin: EdgeInsets.zero,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          _isRequest
+                              ? Icons.calendar_month_rounded
+                              : Icons.date_range_rounded,
+                          color: theme.colorScheme.primary,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          _isRequest ? 'Trip Dates' : 'Availability Window',
+                          style: theme.textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _isRequest
+                          ? 'When are you arriving and departing? Dates will be saved as open start/end tags.'
+                          : 'Ongoing hosts can leave dates open-ended. Specify dates if you can only host temporarily.',
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                    ),
+                    if (!_isRequest) ...[
+                      const SizedBox(height: 8),
+                      CheckboxListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Temporary Hosting Window'),
+                        subtitle: const Text(
+                            'Set specific dates (e.g. while subletting or roommate is away)'),
+                        value: _isTemporaryHosting,
+                        onChanged: (val) {
+                          setState(() {
+                            _isTemporaryHosting = val ?? false;
+                            if (!_isTemporaryHosting) {
+                              _startDate = null;
+                              _endDate = null;
+                            }
+                          });
+                        },
+                      ),
+                    ],
+                    if (_isRequest || _isTemporaryHosting) ...[
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () => _pickDate(isStart: true),
+                              icon: const Icon(Icons.login_rounded, size: 18),
+                              label: Text(
+                                _startDate != null
+                                    ? '${_isRequest ? "Arrival" : "Start"}: ${dateFormat.format(_startDate!)}'
+                                    : (_isRequest
+                                        ? "Arrival Date"
+                                        : "Start Date"),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () => _pickDate(isStart: false),
+                              icon: const Icon(Icons.logout_rounded, size: 18),
+                              label: Text(
+                                _endDate != null
+                                    ? '${_isRequest ? "Departure" : "End"}: ${dateFormat.format(_endDate!)}'
+                                    : (_isRequest
+                                        ? "Departure Date"
+                                        : "End Date"),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
               ),
-              validator: (v) => (v == null || v.trim().isEmpty) ? 'Please provide a short summary' : null,
             ),
             const SizedBox(height: 24),
 
@@ -343,18 +513,25 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
                       children: [
                         Row(
                           children: [
-                            Icon(Icons.map_rounded, color: theme.colorScheme.primary),
+                            Icon(Icons.map_rounded,
+                                color: theme.colorScheme.primary),
                             const SizedBox(width: 8),
                             Text(
-                              'General Area & Neighborhood',
-                              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                              _isRequest
+                                  ? 'Destination City / Area'
+                                  : 'General Area & Neighborhood',
+                              style: theme.textTheme.titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.bold),
                             ),
                           ],
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          'Type your city or tap/drag anywhere on the map to set the general ~20-40km area where you host. Your exact street address is NEVER asked for or stored.',
-                          style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                          _isRequest
+                              ? 'Search destination city or tap the map to set the general ~20-40km zone you plan to visit.'
+                              : 'Type your city or tap/drag anywhere on the map to set the general ~20-40km area where you host. Your exact street address is NEVER asked for or stored.',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant),
                         ),
                         const SizedBox(height: 14),
 
@@ -362,8 +539,11 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
                         TextField(
                           controller: _locationSearchController,
                           decoration: InputDecoration(
-                            labelText: 'Search City or Region',
-                            hintText: 'e.g. Seattle, Austin, Berlin, Paris, Tokyo...',
+                            labelText: _isRequest
+                                ? 'Destination City or Region'
+                                : 'Search City or Region',
+                            hintText:
+                                'e.g. Chicago, Seattle, Austin, Berlin, Paris...',
                             prefixIcon: const Icon(Icons.search_rounded),
                             suffixIcon: _isSearchingCities
                                 ? const Padding(
@@ -371,7 +551,8 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
                                     child: SizedBox(
                                       width: 16,
                                       height: 16,
-                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2),
                                     ),
                                   )
                                 : null,
@@ -379,7 +560,7 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
                           onChanged: _onCitySearchChanged,
                         ),
 
-                        // City Suggestions Dropdown / Chips
+                        // City Suggestions Dropdown
                         if (_citySuggestions.isNotEmpty)
                           Container(
                             margin: const EdgeInsets.only(top: 8),
@@ -391,14 +572,20 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
                               shrinkWrap: true,
                               physics: const NeverScrollableScrollPhysics(),
                               itemCount: _citySuggestions.length,
-                              separatorBuilder: (_, __) => const Divider(height: 1),
+                              separatorBuilder: (_, __) =>
+                                  const Divider(height: 1),
                               itemBuilder: (context, idx) {
                                 final item = _citySuggestions[idx];
                                 return ListTile(
                                   dense: true,
-                                  leading: const Icon(Icons.location_city_rounded, size: 20),
-                                  title: Text(item.displayName, style: const TextStyle(fontWeight: FontWeight.w600)),
-                                  subtitle: Text('Zone: ${item.geohash} (~20-40km area)'),
+                                  leading: const Icon(
+                                      Icons.location_city_rounded,
+                                      size: 20),
+                                  title: Text(item.displayName,
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.w600)),
+                                  subtitle: Text(
+                                      'Zone: ${item.geohash} (~20-40km area)'),
                                   onTap: () => _selectCity(item),
                                 );
                               },
@@ -427,7 +614,8 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
                             TileLayer(
                               urlTemplate: MapTileConfig.getTileUrl(context),
                               subdomains: MapTileConfig.subdomains,
-                              userAgentPackageName: MapTileConfig.userAgentPackageName,
+                              userAgentPackageName:
+                                  MapTileConfig.userAgentPackageName,
                             ),
 
                             // Geohash Bounding Rectangle Polygon
@@ -436,7 +624,8 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
                                 polygons: [
                                   Polygon(
                                     points: polygonPoints,
-                                    color: theme.colorScheme.primary.withValues(alpha: 0.25),
+                                    color: theme.colorScheme.primary
+                                        .withValues(alpha: 0.25),
                                     borderColor: theme.colorScheme.primary,
                                     borderStrokeWidth: 2.5,
                                   ),
@@ -454,52 +643,29 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
                                     decoration: BoxDecoration(
                                       color: theme.colorScheme.primary,
                                       shape: BoxShape.circle,
-                                      border: Border.all(color: Colors.white, width: 2),
-                                      boxShadow: const [
+                                      border: Border.all(
+                                          color: Colors.white, width: 2.5),
+                                      boxShadow: [
                                         BoxShadow(
-                                          color: Colors.black26,
+                                          color: Colors.black
+                                              .withValues(alpha: 0.3),
                                           blurRadius: 6,
-                                          offset: Offset(0, 2),
+                                          offset: const Offset(0, 2),
                                         ),
                                       ],
                                     ),
-                                    child: const Icon(
-                                      Icons.home_rounded,
+                                    child: Icon(
+                                      _isRequest
+                                          ? Icons.luggage_rounded
+                                          : Icons.roofing_rounded,
                                       color: Colors.white,
-                                      size: 24,
+                                      size: 22,
                                     ),
                                   ),
                                 ),
                               ],
                             ),
                           ],
-                        ),
-
-                        // Tap instruction overlay
-                        Positioned(
-                          top: 10,
-                          left: 10,
-                          right: 10,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.65),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.touch_app_rounded, color: Colors.white, size: 16),
-                                SizedBox(width: 6),
-                                Expanded(
-                                  child: Text(
-                                    'Tap anywhere on the map to snap to that neighborhood zone',
-                                    style: TextStyle(color: Colors.white, fontSize: 11),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
                         ),
                       ],
                     ),
@@ -511,7 +677,8 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
                     color: theme.colorScheme.surfaceContainerHigh,
                     child: Row(
                       children: [
-                        Icon(Icons.shield_outlined, color: theme.colorScheme.primary, size: 20),
+                        Icon(Icons.shield_outlined,
+                            color: theme.colorScheme.primary, size: 20),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Column(
@@ -519,11 +686,12 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
                             children: [
                               Text(
                                 'Selected Zone: $_currentLocationName (g: $_currentGeohash)',
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 13),
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                '🔒 Nostr Privacy: Bounded to ~20-40km area. No private coordinates are broadcasted.',
+                                '🔒 Nostr Privacy: Bounded to ~20-40km area. Exact street coordinates are never published.',
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   color: theme.colorScheme.onSurfaceVariant,
                                   fontSize: 11,
@@ -540,7 +708,7 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
             ),
             const SizedBox(height: 24),
 
-            // --- SECTION: Sleeping Arrangements & Capacity ---
+            // --- SECTION: Arrangements & Capacity ---
             Card(
               margin: EdgeInsets.zero,
               child: Padding(
@@ -550,68 +718,120 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.bed_rounded, color: theme.colorScheme.primary),
+                        Icon(Icons.bed_rounded,
+                            color: theme.colorScheme.primary),
                         const SizedBox(width: 8),
                         Text(
-                          'Sleeping Arrangements & Capacity',
-                          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                          _isRequest
+                              ? 'Travel Party & Sleeping Needs'
+                              : 'Sleeping Arrangements & Capacity',
+                          style: theme.textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.bold),
                         ),
                       ],
                     ),
                     const SizedBox(height: 16),
-
-                    Text('Primary Sleeping Setup', style: theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.bold)),
+                    Text(
+                      _isRequest
+                          ? 'Acceptable Sleeping Setup'
+                          : 'Primary Sleeping Setup',
+                      style: theme.textTheme.labelMedium
+                          ?.copyWith(fontWeight: FontWeight.bold),
+                    ),
                     const SizedBox(height: 8),
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
                       children: [
-                        _buildChoiceChip('— Unspecified', null, _sleepingArrangement, (v) => setState(() => _sleepingArrangement = v)),
-                        _buildChoiceChip('Private room', 'private_room', _sleepingArrangement, (v) => setState(() => _sleepingArrangement = v)),
-                        _buildChoiceChip('Shared room', 'shared_room', _sleepingArrangement, (v) => setState(() => _sleepingArrangement = v)),
-                        _buildChoiceChip('Couch / Sofa', 'couch', _sleepingArrangement, (v) => setState(() => _sleepingArrangement = v)),
-                        _buildChoiceChip('Common room', 'common_room', _sleepingArrangement, (v) => setState(() => _sleepingArrangement = v)),
-                        _buildChoiceChip('Tent camping space', 'tent_space', _sleepingArrangement, (v) => setState(() => _sleepingArrangement = v)),
+                        _buildChoiceChip(
+                            '— Unspecified',
+                            null,
+                            _sleepingArrangement,
+                            (v) => setState(() => _sleepingArrangement = v)),
+                        _buildChoiceChip(
+                            'Private room',
+                            'private_room',
+                            _sleepingArrangement,
+                            (v) => setState(() => _sleepingArrangement = v)),
+                        _buildChoiceChip(
+                            'Shared room',
+                            'shared_room',
+                            _sleepingArrangement,
+                            (v) => setState(() => _sleepingArrangement = v)),
+                        _buildChoiceChip(
+                            'Couch / Sofa',
+                            'couch',
+                            _sleepingArrangement,
+                            (v) => setState(() => _sleepingArrangement = v)),
+                        _buildChoiceChip(
+                            'Common room',
+                            'common_room',
+                            _sleepingArrangement,
+                            (v) => setState(() => _sleepingArrangement = v)),
+                        _buildChoiceChip(
+                            'Tent camping space',
+                            'tent_space',
+                            _sleepingArrangement,
+                            (v) => setState(() => _sleepingArrangement = v)),
                       ],
                     ),
                     const SizedBox(height: 16),
-
                     Row(
                       children: [
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Max Number of Guests', style: theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.bold)),
+                              Text(
+                                _isRequest
+                                    ? 'Party Size'
+                                    : 'Max Number of Guests',
+                                style: theme.textTheme.labelMedium
+                                    ?.copyWith(fontWeight: FontWeight.bold),
+                              ),
                               const SizedBox(height: 4),
-                              Text('Simultaneous travelers accommodated', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                              Text(
+                                _isRequest
+                                    ? 'Number of travelers in your party'
+                                    : 'Simultaneous travelers accommodated',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                    color: theme.colorScheme.onSurfaceVariant),
+                              ),
                             ],
                           ),
                         ),
                         Container(
                           decoration: BoxDecoration(
-                            border: Border.all(color: theme.colorScheme.outlineVariant),
+                            border: Border.all(
+                                color: theme.colorScheme.outlineVariant),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               IconButton(
-                                icon: const Icon(Icons.remove_rounded, size: 18),
-                                onPressed: (_maxGuests != null && _maxGuests! > 1)
-                                    ? () => setState(() => _maxGuests = _maxGuests! - 1)
+                                icon:
+                                    const Icon(Icons.remove_rounded, size: 18),
+                                onPressed: (_maxGuests != null &&
+                                        _maxGuests! > 1)
+                                    ? () => setState(
+                                        () => _maxGuests = _maxGuests! - 1)
                                     : () => setState(() => _maxGuests = null),
                               ),
                               Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 4.0),
                                 child: Text(
                                   _maxGuests != null ? '$_maxGuests' : '—',
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16),
                                 ),
                               ),
                               IconButton(
                                 icon: const Icon(Icons.add_rounded, size: 18),
-                                onPressed: () => setState(() => _maxGuests = (_maxGuests ?? 1) + 1),
+                                onPressed: () => setState(
+                                    () => _maxGuests = (_maxGuests ?? 1) + 1),
                               ),
                             ],
                           ),
@@ -624,7 +844,7 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
             ),
             const SizedBox(height: 20),
 
-            // --- SECTION: Hosting Preferences (Tri-State: — / Yes / No) ---
+            // --- SECTION: Preferences & Rules (Tri-State: — / Yes / No) ---
             Card(
               margin: EdgeInsets.zero,
               child: Padding(
@@ -634,208 +854,196 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.tune_rounded, color: theme.colorScheme.primary),
+                        Icon(Icons.tune_rounded,
+                            color: theme.colorScheme.primary),
                         const SizedBox(width: 8),
                         Text(
-                          'Hosting Preferences',
-                          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                          _isRequest
+                              ? 'Travel Needs & Habits'
+                              : 'Hosting Preferences',
+                          style: theme.textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.bold),
                         ),
                       ],
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Select "—" to leave unanswered / not specified, or explicitly set "Yes" or "No".',
-                      style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                      'Select "—" to leave unspecified, or explicitly declare "Yes" or "No".',
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                     ),
                     const SizedBox(height: 12),
-
                     _buildTriStateRow(
-                      theme,
-                      'Accept last-minute requests',
-                      'Open to travelers reaching out same-day',
-                      _acceptLastMinute,
-                      (v) => setState(() => _acceptLastMinute = v),
-                    ),
-                    const Divider(height: 1),
-                    _buildTriStateRow(
-                      theme,
-                      'Wheelchair accessible',
-                      'Step-free or accessible access to accommodation',
+                      _isRequest
+                          ? 'Wheelchair accessible stay required'
+                          : 'Wheelchair accessible accommodation',
                       _wheelchairAccessible,
-                      (v) => setState(() => _wheelchairAccessible = v),
+                      (val) => setState(() => _wheelchairAccessible = val),
                     ),
-                    const Divider(height: 1),
                     _buildTriStateRow(
-                      theme,
-                      'Tent camping available',
-                      'Backyard or lawn space suitable for tents',
+                      _isRequest
+                          ? 'Tent camping acceptable'
+                          : 'Tent camping space available',
                       _tentCampingAvailable,
-                      (v) => setState(() => _tentCampingAvailable = v),
+                      (val) => setState(() => _tentCampingAvailable = val),
                     ),
-                    const Divider(height: 1),
                     _buildTriStateRow(
-                      theme,
-                      'Hosts people with children',
-                      null,
+                      _isRequest
+                          ? 'Traveling with children'
+                          : 'Welcomes guests with children',
                       _hostsWithChildren,
-                      (v) => setState(() => _hostsWithChildren = v),
+                      (val) => setState(() => _hostsWithChildren = val),
                     ),
-                    const Divider(height: 1),
                     _buildTriStateRow(
-                      theme,
-                      'Hosts people with pets',
-                      null,
+                      _isRequest
+                          ? 'Traveling with pets'
+                          : 'Welcomes guests with pets',
                       _hostsWithPets,
-                      (v) => setState(() => _hostsWithPets = v),
+                      (val) => setState(() => _hostsWithPets = val),
                     ),
-                    const Divider(height: 1),
                     _buildTriStateRow(
-                      theme,
-                      'Okay with people drinking',
-                      'Guests may drink alcohol in moderation',
+                      _isRequest
+                          ? 'Open to drinking alcohol'
+                          : 'Guests permitted to drink alcohol',
                       _okayWithDrinking,
-                      (v) => setState(() => _okayWithDrinking = v),
-                    ),
-                    const Divider(height: 1),
-                    const SizedBox(height: 14),
-
-                    Text('Smoking Policy for Guests', style: theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _buildChoiceChip('— Unspecified', null, _okayWithSmoking, (v) => setState(() => _okayWithSmoking = v)),
-                        _buildChoiceChip('No smoking', 'no', _okayWithSmoking, (v) => setState(() => _okayWithSmoking = v)),
-                        _buildChoiceChip('Outside only', 'outside', _okayWithSmoking, (v) => setState(() => _okayWithSmoking = v)),
-                        _buildChoiceChip('Smoking allowed', 'yes', _okayWithSmoking, (v) => setState(() => _okayWithSmoking = v)),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // --- SECTION: My Home Environment (Tri-State: — / Yes / No) ---
-            Card(
-              margin: EdgeInsets.zero,
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.house_outlined, color: theme.colorScheme.primary),
-                        const SizedBox(width: 8),
-                        Text(
-                          'My Home & Household',
-                          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Information about your household environment.',
-                      style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                    ),
-                    const SizedBox(height: 14),
-
-                    Text('Parking Availability', style: theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _buildChoiceChip('— Unspecified', null, _parking, (v) => setState(() => _parking = v)),
-                        _buildChoiceChip('No parking', 'none', _parking, (v) => setState(() => _parking = v)),
-                        _buildChoiceChip('Free on premises', 'free_on_premises', _parking, (v) => setState(() => _parking = v)),
-                        _buildChoiceChip('Street parking', 'street', _parking, (v) => setState(() => _parking = v)),
-                        _buildChoiceChip('Paid parking nearby', 'paid', _parking, (v) => setState(() => _parking = v)),
-                      ],
+                      (val) => setState(() => _okayWithDrinking = val),
                     ),
                     const SizedBox(height: 12),
-
-                    TextFormField(
-                      controller: _parkingDetailsController,
-                      decoration: const InputDecoration(
-                        labelText: 'Parking Details (Optional)',
-                        hintText: 'e.g. Driveway spot or free street parking after 6 PM',
-                      ),
+                    Text(
+                      _isRequest ? 'Smoking Habit' : 'Smoking Policy',
+                      style: theme.textTheme.labelMedium
+                          ?.copyWith(fontWeight: FontWeight.bold),
                     ),
-                    const SizedBox(height: 16),
-
-                    _buildTriStateRow(
-                      theme,
-                      'Has housemates / roommates',
-                      null,
-                      _hasHousemates,
-                      (v) => setState(() => _hasHousemates = v),
-                    ),
-                    const Divider(height: 1),
-                    _buildTriStateRow(
-                      theme,
-                      'Kids live in household',
-                      null,
-                      _hasKids,
-                      (v) => setState(() => _hasKids = v),
-                    ),
-                    const Divider(height: 1),
-                    _buildTriStateRow(
-                      theme,
-                      'Pets live in household',
-                      null,
-                      _hasPets,
-                      (v) => setState(() => _hasPets = v),
-                    ),
-                    const Divider(height: 1),
-                    _buildTriStateRow(
-                      theme,
-                      'Host drinks at home',
-                      null,
-                      _drinksAtHome,
-                      (v) => setState(() => _drinksAtHome = v),
-                    ),
-                    const Divider(height: 1),
-                    const SizedBox(height: 14),
-
-                    Text('Host Smokes at Home', style: theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
                       children: [
-                        _buildChoiceChip('— Unspecified', null, _smokesAtHome, (v) => setState(() => _smokesAtHome = v)),
-                        _buildChoiceChip('No', 'no', _smokesAtHome, (v) => setState(() => _smokesAtHome = v)),
-                        _buildChoiceChip('Outside only', 'outside', _smokesAtHome, (v) => setState(() => _smokesAtHome = v)),
-                        _buildChoiceChip('Yes', 'yes', _smokesAtHome, (v) => setState(() => _smokesAtHome = v)),
+                        _buildChoiceChip(
+                            '— Unspecified',
+                            null,
+                            _okayWithSmoking,
+                            (v) => setState(() => _okayWithSmoking = v)),
+                        _buildChoiceChip('No smoking', 'no', _okayWithSmoking,
+                            (v) => setState(() => _okayWithSmoking = v)),
+                        _buildChoiceChip(
+                            'Outside only',
+                            'outside',
+                            _okayWithSmoking,
+                            (v) => setState(() => _okayWithSmoking = v)),
+                        _buildChoiceChip(
+                            'Allowed / Smoker',
+                            'yes',
+                            _okayWithSmoking,
+                            (v) => setState(() => _okayWithSmoking = v)),
                       ],
                     ),
                   ],
                 ),
               ),
             ),
-            const SizedBox(height: 24),
-
-            // Detailed Description / House Rules
-            Text('Full Description & Hospitality Details', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 6),
-            TextFormField(
-              controller: _contentController,
-              maxLines: 6,
-              decoration: const InputDecoration(
-                hintText:
-                    'Describe your space, house expectations, check-in details, and what makes hosting fun for you.',
-                alignLabelWithHint: true,
-              ),
-              validator: (v) => (v == null || v.trim().isEmpty) ? 'Please provide detailed description' : null,
-            ),
             const SizedBox(height: 20),
 
-            const SizedBox(height: 24),
+            // --- SECTION: Home Environment (Hosts Only) ---
+            if (!_isRequest) ...[
+              Card(
+                margin: EdgeInsets.zero,
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.home_outlined,
+                              color: theme.colorScheme.primary),
+                          const SizedBox(width: 8),
+                          Text(
+                            'My Home Environment',
+                            style: theme.textTheme.titleMedium
+                                ?.copyWith(fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      _buildTriStateRow(
+                          'I live with roommates / housemates',
+                          _hasHousemates,
+                          (val) => setState(() => _hasHousemates = val)),
+                      _buildTriStateRow('Children live in household', _hasKids,
+                          (val) => setState(() => _hasKids = val)),
+                      _buildTriStateRow('Pets on the property', _hasPets,
+                          (val) => setState(() => _hasPets = val)),
+                      _buildTriStateRow(
+                          'I drink alcohol at home',
+                          _drinksAtHome,
+                          (val) => setState(() => _drinksAtHome = val)),
+                      const SizedBox(height: 12),
+                      Text('Host Smoking at Home',
+                          style: theme.textTheme.labelMedium
+                              ?.copyWith(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _buildChoiceChip('— Unspecified', null, _smokesAtHome,
+                              (v) => setState(() => _smokesAtHome = v)),
+                          _buildChoiceChip('Non-smoker', 'no', _smokesAtHome,
+                              (v) => setState(() => _smokesAtHome = v)),
+                          _buildChoiceChip(
+                              'Outside only',
+                              'outside',
+                              _smokesAtHome,
+                              (v) => setState(() => _smokesAtHome = v)),
+                          _buildChoiceChip(
+                              'Smokes at home',
+                              'yes',
+                              _smokesAtHome,
+                              (v) => setState(() => _smokesAtHome = v)),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Text('Guest Parking',
+                          style: theme.textTheme.labelMedium
+                              ?.copyWith(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _buildChoiceChip('— Unspecified', null, _parking,
+                              (v) => setState(() => _parking = v)),
+                          _buildChoiceChip(
+                              'Free on premises',
+                              'free_on_premises',
+                              _parking,
+                              (v) => setState(() => _parking = v)),
+                          _buildChoiceChip('Street parking', 'street', _parking,
+                              (v) => setState(() => _parking = v)),
+                          _buildChoiceChip('Paid nearby', 'paid', _parking,
+                              (v) => setState(() => _parking = v)),
+                          _buildChoiceChip('No parking', 'none', _parking,
+                              (v) => setState(() => _parking = v)),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      TextFormField(
+                        controller: _parkingDetailsController,
+                        decoration: const InputDecoration(
+                          labelText: 'Parking Instructions (Optional)',
+                          hintText: 'e.g. Driveway spot on the left side',
+                          prefixIcon: Icon(Icons.local_parking_rounded),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+            ],
 
-            // --- SECTION: Accommodation Photos (nostr.build) ---
+            // Photos Section
             Card(
               margin: EdgeInsets.zero,
               child: Padding(
@@ -845,121 +1053,96 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.photo_library_outlined, color: theme.colorScheme.primary),
+                        Icon(Icons.photo_library_outlined,
+                            color: theme.colorScheme.primary),
                         const SizedBox(width: 8),
                         Text(
-                          'Accommodation Photos',
-                          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                          _isRequest
+                              ? 'Travel & Destination Photos'
+                              : 'Accommodation Photos',
+                          style: theme.textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.bold),
                         ),
                       ],
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Upload photos of your spare room, couch, or home. Hosted decentralized on nostr.build and published in your Nostr listing.',
-                      style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                      'Upload photos to decentralized nostr.build media servers or enter existing URLs.',
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                     ),
-                    const SizedBox(height: 16),
-
-                    // Active Upload Spinner
-                    if (_isUploadingImage)
-                      Container(
-                        margin: const EdgeInsets.only(bottom: 16),
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.4)),
-                        ),
-                        child: const Row(
-                          children: [
-                            SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2.5),
-                            ),
-                            SizedBox(width: 14),
-                            Expanded(
-                              child: Text(
-                                'Uploading image to nostr.build via NIP-96...',
-                                style: TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                    // Gallery Display
+                    const SizedBox(height: 12),
                     if (_images.isNotEmpty)
-                      Wrap(
-                        spacing: 12,
-                        runSpacing: 12,
-                        children: [
-                          for (int i = 0; i < _images.length; i++)
-                            Stack(
+                      SizedBox(
+                        height: 100,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _images.length,
+                          separatorBuilder: (_, __) => const SizedBox(width: 8),
+                          itemBuilder: (context, i) {
+                            return Stack(
                               children: [
-                                Container(
-                                  width: 110,
-                                  height: 110,
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: theme.colorScheme.outlineVariant),
-                                    image: DecorationImage(
-                                      image: NetworkImage(_images[i]),
-                                      fit: BoxFit.cover,
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: Image.network(
+                                    _images[i],
+                                    width: 100,
+                                    height: 100,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => Container(
+                                      width: 100,
+                                      height: 100,
+                                      color: Colors.grey[800],
+                                      child: const Icon(Icons.broken_image,
+                                          color: Colors.white54),
                                     ),
                                   ),
                                 ),
-                                if (i == 0)
-                                  Positioned(
-                                    top: 6,
-                                    left: 6,
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: Colors.black.withValues(alpha: 0.75),
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: const Text(
-                                        'Cover',
-                                        style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
-                                      ),
-                                    ),
-                                  ),
                                 Positioned(
                                   top: 4,
                                   right: 4,
                                   child: GestureDetector(
-                                    onTap: () => setState(() => _images.removeAt(i)),
+                                    onTap: () =>
+                                        setState(() => _images.removeAt(i)),
                                     child: Container(
-                                      padding: const EdgeInsets.all(4),
-                                      decoration: BoxDecoration(
-                                        color: Colors.black.withValues(alpha: 0.7),
+                                      padding: const EdgeInsets.all(2),
+                                      decoration: const BoxDecoration(
+                                        color: Colors.black87,
                                         shape: BoxShape.circle,
                                       ),
-                                      child: const Icon(Icons.close_rounded, color: Colors.white, size: 14),
+                                      child: const Icon(Icons.close,
+                                          size: 16, color: Colors.white),
                                     ),
                                   ),
                                 ),
                               ],
-                            ),
-                        ],
+                            );
+                          },
+                        ),
                       ),
-
-                    if (_images.isNotEmpty) const SizedBox(height: 16),
-
-                    // Action buttons
+                    const SizedBox(height: 12),
                     Row(
                       children: [
-                        FilledButton.tonalIcon(
-                          onPressed: _isUploadingImage ? null : _pickAndUploadImage,
-                          icon: const Icon(Icons.add_photo_alternate_rounded, size: 18),
-                          label: const Text('Upload Photo'),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed:
+                                _isUploadingImage ? null : _pickAndUploadImage,
+                            icon: _isUploadingImage
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2))
+                                : const Icon(Icons.cloud_upload_outlined,
+                                    size: 18),
+                            label: const Text('Upload Photo'),
+                          ),
                         ),
-                        const SizedBox(width: 10),
-                        OutlinedButton.icon(
-                          onPressed: _isUploadingImage ? null : _showAddImageUrlDialog,
-                          icon: const Icon(Icons.link_rounded, size: 18),
-                          label: const Text('Add by URL'),
+                        const SizedBox(width: 8),
+                        IconButton.outlined(
+                          tooltip: 'Add photo URL',
+                          icon: const Icon(Icons.link_rounded),
+                          onPressed: _showAddImageUrlDialog,
                         ),
                       ],
                     ),
@@ -967,18 +1150,109 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
                 ),
               ),
             ),
+            const SizedBox(height: 24),
+
+            // Listing / Trip Title
+            Text(
+              _isRequest ? 'Trip Title' : 'Listing Title',
+              style: theme.textTheme.titleSmall
+                  ?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 6),
+            TextFormField(
+              controller: _titleController,
+              decoration: InputDecoration(
+                hintText: _isRequest
+                    ? 'e.g. Visiting Chicago for Architecture Biennial'
+                    : 'e.g. Spare Guest Room near Downtown Seattle',
+                prefixIcon: const Icon(Icons.title_rounded),
+              ),
+              validator: (v) => (v == null || v.trim().isEmpty)
+                  ? (_isRequest
+                      ? 'Please provide a trip title'
+                      : 'Please provide a listing title')
+                  : null,
+            ),
+            const SizedBox(height: 20),
+
+            // Short Summary
+            Text(
+              _isRequest
+                  ? 'Short Summary (Card Preview)'
+                  : 'Short Summary (Card Preview)',
+              style: theme.textTheme.titleSmall
+                  ?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'A brief 1-2 sentence overview displayed on map and discovery cards.',
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: 6),
+            TextFormField(
+              controller: _summaryController,
+              maxLines: 2,
+              decoration: InputDecoration(
+                hintText: _isRequest
+                    ? 'e.g. Solo traveler seeking 3 nights in Chicago for music and museum exploration'
+                    : 'e.g. Cozy private room with queen bed, fast Wi-Fi, and bike access',
+                prefixIcon: const Icon(Icons.short_text_rounded),
+              ),
+              validator: (v) => (v == null || v.trim().isEmpty)
+                  ? 'Please provide a short summary'
+                  : null,
+            ),
+            const SizedBox(height: 20),
+
+            // Detailed Content & Markdown Description
+            Text(
+              _isRequest
+                  ? 'Detailed Trip Description & Expectations'
+                  : 'Detailed Description & House Expectations',
+              style: theme.textTheme.titleSmall
+                  ?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 6),
+            TextFormField(
+              controller: _contentController,
+              maxLines: 7,
+              decoration: InputDecoration(
+                hintText: _isRequest
+                    ? 'Tell local hosts about yourself, what brings you to town, what you hope to see or do, and what kind of stay you are hoping for...'
+                    : 'Describe your home, host background, available sleeping arrangements, public transit access, and local recommendations...',
+                alignLabelWithHint: true,
+              ),
+              validator: (v) => (v == null || v.trim().isEmpty)
+                  ? 'Please provide a detailed description'
+                  : null,
+            ),
             const SizedBox(height: 32),
 
+            // Publish Button
             FilledButton.icon(
               onPressed: _isSaving ? null : _saveListing,
-              style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
-              icon: const Icon(Icons.cloud_upload_rounded),
+              icon: _isSaving
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white))
+                  : const Icon(Icons.publish_rounded),
               label: Text(
-                isEditing ? 'Save & Broadcast Changes to Relays' : 'Publish Hospitality Offer to Nostr',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                isEditing
+                    ? (_isRequest
+                        ? 'Update Travel Request'
+                        : 'Update Hosting Offer')
+                    : (_isRequest
+                        ? 'Publish Travel Request'
+                        : 'Publish Hosting Offer'),
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
+              style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16)),
             ),
-            const SizedBox(height: 40),
+            const SizedBox(height: 32),
           ],
         ),
       ),
@@ -986,67 +1260,38 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
   }
 
   Widget _buildTriStateRow(
-    ThemeData theme,
-    String title,
-    String? subtitle,
-    bool? value,
-    ValueChanged<bool?> onChanged,
-  ) {
+      String label, bool? value, ValueChanged<bool?> onChanged) {
+    final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: Row(
         children: [
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.w500)),
-                if (subtitle != null) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ],
-            ),
+            child: Text(label, style: theme.textTheme.bodyMedium),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 8),
           SegmentedButton<bool?>(
-            showSelectedIcon: false,
-            style: ButtonStyle(
-              visualDensity: VisualDensity.compact,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              padding: WidgetStateProperty.all(const EdgeInsets.symmetric(horizontal: 10, vertical: 0)),
-            ),
             segments: const [
-              ButtonSegment<bool?>(
-                value: null,
-                label: Text('—', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-                tooltip: 'Unanswered / Not specified',
-              ),
-              ButtonSegment<bool?>(
-                value: true,
-                label: Text('Yes', style: TextStyle(fontSize: 12)),
-              ),
-              ButtonSegment<bool?>(
-                value: false,
-                label: Text('No', style: TextStyle(fontSize: 12)),
-              ),
+              ButtonSegment<bool?>(value: null, label: Text('—')),
+              ButtonSegment<bool?>(value: true, label: Text('Yes')),
+              ButtonSegment<bool?>(value: false, label: Text('No')),
             ],
             selected: {value},
             onSelectionChanged: (set) => onChanged(set.first),
+            style: const ButtonStyle(
+              visualDensity: VisualDensity.compact,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildChoiceChip(String label, String? value, String? selectedValue, ValueChanged<String?> onSelected) {
-    final isSelected = selectedValue == value;
-    return ChoiceChip(
+  Widget _buildChoiceChip<T>(
+      String label, T value, T currentValue, ValueChanged<T?> onSelected) {
+    final isSelected = value == currentValue;
+    return FilterChip(
       label: Text(label),
       selected: isSelected,
       onSelected: (selected) {
@@ -1063,9 +1308,13 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     final authState = ref.read(authStateProvider).valueOrNull;
-    if (authState == null || !authState.isAuthenticated || authState.pubkey == null) {
+    if (authState == null ||
+        !authState.isAuthenticated ||
+        authState.pubkey == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please sign in with your Nostr keys to publish a listing')),
+        const SnackBar(
+            content: Text(
+                'Please sign in with your Nostr keys to publish a listing')),
       );
       return;
     }
@@ -1077,7 +1326,19 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
       final myPubkey = authState.pubkey!;
       final existing = widget.initialListing;
 
-      final dTag = existing?.dTag ?? '$myPubkey-home';
+      final String dTag;
+      if (existing != null) {
+        dTag = existing.dTag;
+      } else if (_isRequest) {
+        final locSlug = _currentLocationName
+            .toLowerCase()
+            .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
+            .replaceAll(RegExp(r'^-|-$'), '');
+        final nowSec = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+        dTag = 'trip-$locSlug-$nowSec';
+      } else {
+        dTag = '$myPubkey-home';
+      }
 
       final draft = HospitalityListing(
         eventId: existing?.eventId ?? '',
@@ -1090,14 +1351,23 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
         geohash: _currentGeohash,
         originLat: _currentCenter.latitude,
         originLon: _currentCenter.longitude,
-        status: _isActive ? NostrConstants.statusActive : NostrConstants.statusSold,
+        status:
+            _isActive ? NostrConstants.statusActive : NostrConstants.statusSold,
         publishedAt: existing?.publishedAt ?? DateTime.now(),
         createdAt: DateTime.now(),
         images: _images,
-        categories: const [
-          NostrConstants.topicHospitality,
-          'Home',
-        ],
+        startDate: (_isRequest || _isTemporaryHosting) ? _startDate : null,
+        endDate: (_isRequest || _isTemporaryHosting) ? _endDate : null,
+        categories: _isRequest
+            ? [
+                NostrConstants.topicHospitality,
+                NostrConstants.topicHospitalityRequest
+              ]
+            : [
+                NostrConstants.topicHospitality,
+                NostrConstants.topicHospitalityOffer,
+                'Home'
+              ],
         maxGuests: _maxGuests,
         acceptLastMinute: _acceptLastMinute,
         wheelchairAccessible: _wheelchairAccessible,
@@ -1108,7 +1378,9 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
         okayWithSmoking: _okayWithSmoking,
         sleepingArrangement: _sleepingArrangement,
         parking: _parking,
-        parkingDetails: _parkingDetailsController.text.trim().isNotEmpty ? _parkingDetailsController.text.trim() : null,
+        parkingDetails: _parkingDetailsController.text.trim().isNotEmpty
+            ? _parkingDetailsController.text.trim()
+            : null,
         hasHousemates: _hasHousemates,
         hasKids: _hasKids,
         hasPets: _hasPets,
@@ -1121,7 +1393,13 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(existing != null ? 'Hosting offer updated on Nostr!' : 'Hosting offer published to Nostr relays!'),
+            content: Text(_isRequest
+                ? (existing != null
+                    ? 'Travel request updated!'
+                    : 'Travel request published to Nostr!')
+                : (existing != null
+                    ? 'Hosting offer updated!'
+                    : 'Hosting offer published to Nostr!')),
           ),
         );
         Navigator.of(context).pop(true);

@@ -2,10 +2,14 @@ import 'package:ndk/entities.dart';
 import '../core/constants/nostr_constants.dart';
 import '../core/utils/geohash_helper.dart';
 
-/// Domain model representing a NIP-99 (Kind 30402) Hospitality Hosting Offer.
+/// Domain model representing a NIP-99 (Kind 30402) Hospitality Listing.
+///
+/// Supports bidirectional listings:
+/// - **Hosting Offers** (`hospitality-offer`): Hosts offering accommodation.
+/// - **Stay Requests** (`hospitality-request`): Travelers seeking accommodation (public trips).
 ///
 /// Follows the open Nostr hospitality specification with 4-character
-/// privacy-preserving geohash tags and strictly null-preserving hosting preferences.
+/// privacy-preserving geohash tags and strictly null-preserving preferences.
 class HospitalityListing {
   final String eventId;
   final String authorPubkey;
@@ -25,7 +29,14 @@ class HospitalityListing {
   final String price;
   final String currency;
 
-  // --- Hosting Preferences (Nullable - Absence means Unknown / Not Specified) ---
+  // --- Temporal Window (Nullable - Absence means Open-Ended / Permanent) ---
+  /// Arrival / check-in date for travel requests, or start of temporary hosting window.
+  final DateTime? startDate;
+
+  /// Departure / check-out date for travel requests, or end of temporary hosting window.
+  final DateTime? endDate;
+
+  // --- Hosting & Stay Preferences (Nullable - Absence means Unknown / Not Specified) ---
   final int? maxGuests;
   final bool? acceptLastMinute;
   final bool? wheelchairAccessible;
@@ -35,7 +46,7 @@ class HospitalityListing {
   final bool? okayWithDrinking;
   final String? okayWithSmoking; // 'no', 'outside', 'yes'
 
-  // --- My Home & Environment (Nullable - Absence means Unknown / Not Specified) ---
+  // --- Home Environment & Arrangements (Nullable - Absence means Unknown / Not Specified) ---
   final String? sleepingArrangement; // 'private_room', 'shared_room', 'couch', 'common_room', 'tent_space'
   final String? parking; // 'none', 'free_on_premises', 'street', 'paid'
   final String? parkingDetails;
@@ -68,6 +79,8 @@ class HospitalityListing {
     ],
     this.price = '0',
     this.currency = 'USD',
+    this.startDate,
+    this.endDate,
     this.maxGuests,
     this.acceptLastMinute,
     this.wheelchairAccessible,
@@ -90,8 +103,38 @@ class HospitalityListing {
   /// Addressable NIP-33 / NIP-99 coordinate: "30402:`pubkey`:`d-tag`"
   String get addressCoordinate => '${NostrConstants.classifiedListingKind}:$authorPubkey:$dTag';
 
-  /// Whether the listing is currently active and open for travelers.
+  /// Whether the listing is currently active and open for travelers or hosts.
   bool get isActive => status.toLowerCase() == NostrConstants.statusActive;
+
+  /// Whether this listing is a traveler stay request (seeking accommodation / public trip).
+  bool get isRequest {
+    final lowerCats = categories.map((c) => c.toLowerCase()).toSet();
+    if (lowerCats.contains(NostrConstants.topicHospitalityRequest.toLowerCase()) ||
+        lowerCats.contains('request') ||
+        lowerCats.contains('stay-request') ||
+        lowerCats.contains('travel-request') ||
+        lowerCats.contains('trip')) {
+      return true;
+    }
+    for (final tag in rawTags) {
+      if (tag.length > 1 && tag[0].toLowerCase() == 'type' && tag[1].toLowerCase() == 'request') {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /// Whether this listing is a hosting offer (offering accommodation).
+  ///
+  /// Backwards-compatibility rule: absence of an explicit offer/request tag
+  /// defaults to being a hosting offer.
+  bool get isOffer => !isRequest;
+
+  /// Whether this listing is date-constrained with arrival/departure or temporary hosting dates.
+  bool get isDateConstrained => startDate != null || endDate != null;
+
+  /// Whether this listing's scheduled end date has already passed.
+  bool get isPast => endDate != null && DateTime.now().isAfter(endDate!);
 
   /// Effective latitude for map rendering (explicit coordinate or derived from geohash).
   double? get effectiveLatitude {
@@ -142,6 +185,9 @@ class HospitalityListing {
     final categories = <String>[];
     String price = '0';
     String currency = 'USD';
+
+    DateTime? startDate;
+    DateTime? endDate;
 
     // Strictly null unless tag is present
     int? maxGuests;
@@ -198,7 +244,17 @@ class HospitalityListing {
         if (tag.length > 2) {
           currency = tag[2];
         }
-      } else if (key == 'max_guests' && tag.length > 1) {
+      } else if (key == NostrConstants.tagStart && tag.length > 1) {
+        final sec = int.tryParse(tag[1]);
+        if (sec != null) {
+          startDate = DateTime.fromMillisecondsSinceEpoch(sec * 1000);
+        }
+      } else if (key == NostrConstants.tagEnd && tag.length > 1) {
+        final sec = int.tryParse(tag[1]);
+        if (sec != null) {
+          endDate = DateTime.fromMillisecondsSinceEpoch(sec * 1000);
+        }
+      } else if ((key == 'max_guests' || key == 'guests') && tag.length > 1) {
         maxGuests = int.tryParse(tag[1]);
       } else if (key == 'last_minute' && tag.length > 1) {
         acceptLastMinute = tag[1].toLowerCase() == 'true';
@@ -239,6 +295,8 @@ class HospitalityListing {
 
     final lowerCategories = categories.map((c) => c.toLowerCase()).toList();
     final isHospitality = lowerCategories.contains(NostrConstants.topicHospitality.toLowerCase()) ||
+        lowerCategories.contains(NostrConstants.topicHospitalityOffer.toLowerCase()) ||
+        lowerCategories.contains(NostrConstants.topicHospitalityRequest.toLowerCase()) ||
         lowerCategories.contains('home');
 
     if (requireHospitalityTag && !isHospitality) {
@@ -251,7 +309,7 @@ class HospitalityListing {
       eventId: event.id,
       authorPubkey: event.pubKey,
       dTag: dTag,
-      title: title ?? (location.isNotEmpty ? 'Stay in $location' : 'Hospitality Offer'),
+      title: title ?? (location.isNotEmpty ? 'Stay in $location' : 'Hospitality Listing'),
       summary: summary ?? (event.content.length > 120 ? '${event.content.substring(0, 120)}...' : event.content),
       content: event.content,
       location: location,
@@ -265,6 +323,8 @@ class HospitalityListing {
       categories: categories.isNotEmpty ? categories : [NostrConstants.topicHospitality, 'Home'],
       price: price,
       currency: currency,
+      startDate: startDate,
+      endDate: endDate,
       maxGuests: maxGuests,
       acceptLastMinute: acceptLastMinute,
       wheelchairAccessible: wheelchairAccessible,
@@ -324,17 +384,39 @@ class HospitalityListing {
       tags.add(['origin_lon', originLon!.toStringAsFixed(4)]);
     }
 
-    // 7. Standard classified category topics
+    // 7. Dates (if date-constrained)
+    if (startDate != null) {
+      tags.add([NostrConstants.tagStart, (startDate!.millisecondsSinceEpoch ~/ 1000).toString()]);
+    }
+    if (endDate != null) {
+      tags.add([NostrConstants.tagEnd, (endDate!.millisecondsSinceEpoch ~/ 1000).toString()]);
+    }
+
+    // 8. Standard classified category topics & type
     final standardTopics = <String>{
       NostrConstants.topicHospitality,
-      'Home',
-      ...categories,
+      if (isRequest)
+        NostrConstants.topicHospitalityRequest
+      else ...[
+        NostrConstants.topicHospitalityOffer,
+        'Home',
+      ],
+      ...categories.where((c) {
+        final lc = c.toLowerCase();
+        return lc != NostrConstants.topicHospitality.toLowerCase() &&
+            lc != NostrConstants.topicHospitalityOffer.toLowerCase() &&
+            lc != NostrConstants.topicHospitalityRequest.toLowerCase() &&
+            lc != 'home';
+      }),
     };
     for (final topic in standardTopics) {
       tags.add([NostrConstants.tagT, topic]);
     }
 
-    // 8. Hosting Preferences Tags (Emitted ONLY if non-null)
+    // Explicit type tag for interoperability
+    tags.add(['type', isRequest ? 'request' : 'offer']);
+
+    // 9. Hosting Preferences / Traveler Needs Tags (Emitted ONLY if non-null)
     if (maxGuests != null) {
       tags.add(['max_guests', maxGuests.toString()]);
     }
@@ -360,7 +442,7 @@ class HospitalityListing {
       tags.add(['smoking_allowed', okayWithSmoking!]);
     }
 
-    // 9. My Home & Environment Tags (Emitted ONLY if non-null)
+    // 10. Home & Environment Tags (Emitted ONLY if non-null)
     if (sleepingArrangement != null && sleepingArrangement!.isNotEmpty) {
       tags.add(['sleeping_arrangement', sleepingArrangement!]);
     }
@@ -386,7 +468,7 @@ class HospitalityListing {
       tags.add(['host_smokes', smokesAtHome!]);
     }
 
-    // 10. Image attachments
+    // 11. Image attachments
     for (final image in images) {
       if (image.trim().isNotEmpty) {
         tags.add([NostrConstants.tagImage, image.trim()]);
@@ -421,6 +503,9 @@ class HospitalityListing {
     List<String>? categories,
     String? price,
     String? currency,
+    DateTime? startDate,
+    DateTime? endDate,
+    bool clearDates = false,
     int? maxGuests,
     bool? acceptLastMinute,
     bool? wheelchairAccessible,
@@ -457,6 +542,8 @@ class HospitalityListing {
       categories: categories ?? this.categories,
       price: price ?? this.price,
       currency: currency ?? this.currency,
+      startDate: clearDates ? null : (startDate ?? this.startDate),
+      endDate: clearDates ? null : (endDate ?? this.endDate),
       maxGuests: maxGuests ?? this.maxGuests,
       acceptLastMinute: acceptLastMinute ?? this.acceptLastMinute,
       wheelchairAccessible: wheelchairAccessible ?? this.wheelchairAccessible,

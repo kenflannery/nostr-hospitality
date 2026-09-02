@@ -39,4 +39,18 @@ class DateFormatter {
   static String formatTime(DateTime dateTime) {
     return _timeFormat.format(dateTime);
   }
+
+  /// Formats a date range as "Nov 2 – Nov 5, 2026" or "From Nov 2, 2026".
+  static String formatDateRange(DateTime? start, DateTime? end) {
+    if (start == null && end == null) return '';
+    if (start != null && end == null) return 'From ${_shortDateFormat.format(start)}';
+    if (start == null && end != null) return 'Until ${_shortDateFormat.format(end)}';
+    if (start!.year == end!.year) {
+      if (start.month == end.month) {
+        return '${DateFormat.MMM().format(start)} ${start.day} – ${end.day}, ${start.year}';
+      }
+      return '${DateFormat.MMMd().format(start)} – ${_shortDateFormat.format(end)}';
+    }
+    return '${_shortDateFormat.format(start)} – ${_shortDateFormat.format(end)}';
+  }
 }

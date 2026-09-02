@@ -193,6 +193,10 @@ final userTravelProfileProvider =
   return repo.getTravelProfile(pubkey);
 });
 
+/// Filter for Discover screen (All, Offers Only, Requests Only)
+final discoverListingTypeFilterProvider =
+    StateProvider<ListingTypeFilter>((ref) => ListingTypeFilter.all);
+
 /// Discover hospitality listings stream provider
 final discoverSearchQueryProvider = StateProvider<String>((ref) => '');
 
@@ -200,14 +204,25 @@ final discoverListingsProvider =
     StreamProvider.autoDispose<List<HospitalityListing>>((ref) {
   final repo = ref.watch(listingRepositoryProvider);
   final query = ref.watch(discoverSearchQueryProvider);
-  return repo.getHospitalityListingsStream(locationFilter: query);
+  final typeFilter = ref.watch(discoverListingTypeFilterProvider);
+  return repo.getHospitalityListingsStream(
+    locationFilter: query,
+    typeFilter: typeFilter,
+  );
 });
 
-/// Hosting listing for a specific author
+/// Primary hosting offer for a specific author
 final authorListingProvider =
     FutureProvider.family.autoDispose<HospitalityListing?, String>((ref, pubkey) async {
   final repo = ref.watch(listingRepositoryProvider);
   return repo.getListingForAuthor(pubkey);
+});
+
+/// All listings (offers and requests) for a specific author
+final authorListingsStreamProvider =
+    StreamProvider.family.autoDispose<List<HospitalityListing>, String>((ref, pubkey) {
+  final repo = ref.watch(listingRepositoryProvider);
+  return repo.getAuthorListingsStream(pubkey);
 });
 
 /// References received by a specific subject pubkey

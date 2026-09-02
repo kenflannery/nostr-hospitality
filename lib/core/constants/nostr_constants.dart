@@ -52,6 +52,8 @@ class NostrConstants {
 
   // --- Hospitality Conventions (NIP-99) ---
   static const String topicHospitality = 'hospitality';
+  static const String topicHospitalityOffer = 'hospitality-offer';
+  static const String topicHospitalityRequest = 'hospitality-request';
   static const String topicHome = 'Home';
   static const String statusActive = 'active';
   static const String statusSold = 'sold'; // NIP-99 closed/inactive

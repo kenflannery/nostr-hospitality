@@ -4,8 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/theme/map_tile_config.dart';
+import '../../../core/utils/date_formatter.dart';
 import '../../../core/utils/geohash_helper.dart';
 import '../../../models/hospitality_listing.dart';
+import '../../../repositories/listing_repository.dart';
 import '../../../widgets/empty_state_view.dart';
 import '../../../widgets/user_avatar.dart';
 import '../../about/screens/about_page.dart';
@@ -95,6 +97,91 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
     }
   }
 
+  void _showCreateListingSheet(BuildContext context, bool isAuthenticated) {
+    if (!isAuthenticated) {
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+      );
+      return;
+    }
+
+    final theme = Theme.of(context);
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Create Hospitality Listing',
+                style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Publish an accommodation offer or broadcast a stay request on Nostr.',
+                style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              ),
+              const SizedBox(height: 20),
+              ListTile(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                tileColor: theme.colorScheme.surfaceContainerLow,
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primaryContainer,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.roofing_rounded, color: theme.colorScheme.primary),
+                ),
+                title: const Text('Host Travelers (Offer Accommodation)', style: TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: const Text('Open your couch, spare room, house swap, or yard to travelers.'),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const ListingEditorScreen(initialIsRequest: false),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 12),
+              ListTile(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                tileColor: theme.colorScheme.surfaceContainerLow,
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.teal.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.luggage_rounded, color: Colors.teal),
+                ),
+                title: const Text('Find a Host (Post Stay Request)', style: TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: const Text('Broadcast destination, travel dates, and party size to local hosts.'),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const ListingEditorScreen(initialIsRequest: true),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -149,30 +236,16 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
       floatingActionButton: _selectedCluster != null
           ? null
           : FloatingActionButton.extended(
-              onPressed: () {
-                if (authState?.isAuthenticated ?? false) {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const ListingEditorScreen(),
-                    ),
-                  );
-                } else {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const LoginScreen(),
-                    ),
-                  );
-                }
-              },
-              icon: const Icon(Icons.add_home_rounded),
-              label: const Text('Host Travelers'),
+              onPressed: () => _showCreateListingSheet(context, authState?.isAuthenticated ?? false),
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Add Listing'),
             ),
       body: Stack(
         children: [
           // Main Body: Map or List View
           Column(
             children: [
-              const SizedBox(height: 64), // Header spacer for floating search bar
+              const SizedBox(height: 122), // Header spacer for floating search & filter bar
               Expanded(
                 child: listingsAsync.when(
                   loading: () => const Center(
@@ -181,7 +254,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                   error: (err, _) => Center(
                     child: EmptyStateView(
                       icon: Icons.error_outline_rounded,
-                      title: 'Unable to Load Offers',
+                      title: 'Unable to Load Listings',
                       message: err.toString(),
                       actionLabel: 'Retry',
                       onAction: () => ref.invalidate(discoverListingsProvider),
@@ -189,27 +262,26 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                   ),
                   data: (listings) {
                     if (listings.isEmpty) {
+                      final typeFilter = ref.watch(discoverListingTypeFilterProvider);
+                      final emptyTitle = typeFilter == ListingTypeFilter.requestsOnly
+                          ? 'No Travel Requests Found'
+                          : typeFilter == ListingTypeFilter.offersOnly
+                              ? 'No Hosting Offers Found'
+                              : 'No Hospitality Listings Yet';
+                      final emptyMsg = typeFilter == ListingTypeFilter.requestsOnly
+                          ? 'Be the first traveler to post a stay request in this destination!'
+                          : typeFilter == ListingTypeFilter.offersOnly
+                              ? 'Be the first host to open your home to travelers on Nostr!'
+                              : 'Be the first to post a hosting offer or travel request on the open Nostr network!\nNo middleman, no fees, 100% sovereign.';
+
                       return EmptyStateView(
                         icon: Icons.explore_off_rounded,
-                        title: 'No Hospitality Offers Yet',
-                        message:
-                            'Be the first to list a couch, spare room, or home on the open Nostr network!\nNo middleman, no fees, 100% sovereign.',
-                        actionLabel: 'Create a Hosting Offer',
-                        onAction: () {
-                          if (authState?.isAuthenticated ?? false) {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const ListingEditorScreen(),
-                              ),
-                            );
-                          } else {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const LoginScreen(),
-                              ),
-                            );
-                          }
-                        },
+                        title: emptyTitle,
+                        message: emptyMsg,
+                        actionLabel: typeFilter == ListingTypeFilter.requestsOnly
+                            ? 'Post Travel Request'
+                            : 'Create Listing',
+                        onAction: () => _showCreateListingSheet(context, authState?.isAuthenticated ?? false),
                       );
                     }
 
@@ -224,7 +296,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
             ],
           ),
 
-          // Floating Search Bar & Auto-Fill Location Dropdown
+          // Floating Search Bar & Filter Controls
           Positioned(
             top: 8,
             left: 16,
@@ -237,53 +309,71 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                   shadowColor: Colors.black.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(16),
                   color: theme.colorScheme.surface,
-                  child: TextField(
-                    controller: _searchController,
-                    focusNode: _searchFocusNode,
-                    decoration: InputDecoration(
-                      hintText: 'Search city or region to recenter map (e.g. Seattle)...',
-                      prefixIcon: const Icon(Icons.search_rounded, size: 20),
-                      suffixIcon: _isSearchingCities
-                          ? const Padding(
-                              padding: EdgeInsets.all(12.0),
-                              child: SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              ),
-                            )
-                          : _searchController.text.isNotEmpty
-                              ? IconButton(
-                                  icon: const Icon(Icons.clear_rounded, size: 18),
-                                  onPressed: () {
-                                    _searchController.clear();
-                                    setState(() => _citySuggestions = []);
-                                  },
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextField(
+                        controller: _searchController,
+                        focusNode: _searchFocusNode,
+                        decoration: InputDecoration(
+                          hintText: 'Search city or region (e.g. Chicago)...',
+                          prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                          suffixIcon: _isSearchingCities
+                              ? const Padding(
+                                  padding: EdgeInsets.all(12.0),
+                                  child: SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  ),
                                 )
-                              : null,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide(
-                          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
+                              : _searchController.text.isNotEmpty
+                                  ? IconButton(
+                                      icon: const Icon(Icons.clear_rounded, size: 18),
+                                      onPressed: () {
+                                        _searchController.clear();
+                                        setState(() => _citySuggestions = []);
+                                      },
+                                    )
+                                  : null,
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        ),
+                        onChanged: _onSearchChanged,
+                        onSubmitted: _onSubmitSearch,
+                      ),
+                      const Divider(height: 1),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
+                        child: SegmentedButton<ListingTypeFilter>(
+                          segments: const [
+                            ButtonSegment(
+                              value: ListingTypeFilter.all,
+                              label: Text('All'),
+                            ),
+                            ButtonSegment(
+                              value: ListingTypeFilter.offersOnly,
+                              label: Text('Hosts'),
+                              icon: Icon(Icons.roofing_rounded, size: 15),
+                            ),
+                            ButtonSegment(
+                              value: ListingTypeFilter.requestsOnly,
+                              label: Text('Travelers'),
+                              icon: Icon(Icons.luggage_rounded, size: 15),
+                            ),
+                          ],
+                          selected: {ref.watch(discoverListingTypeFilterProvider)},
+                          onSelectionChanged: (set) {
+                            ref.read(discoverListingTypeFilterProvider.notifier).state = set.first;
+                            setState(() => _selectedCluster = null);
+                          },
+                          style: const ButtonStyle(
+                            visualDensity: VisualDensity.compact,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
                         ),
                       ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide(
-                          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
-                        ),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide(
-                          color: theme.colorScheme.primary,
-                          width: 1.5,
-                        ),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    ),
-                    onChanged: _onSearchChanged,
-                    onSubmitted: _onSubmitSearch,
+                    ],
                   ),
                 ),
 
@@ -453,6 +543,20 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
               markers: clusters.map((cluster) {
                 final isSelected = _selectedCluster?.id == cluster.id;
                 final isMulti = cluster.listings.length > 1;
+                final isRequestCluster = cluster.listings.every((l) => l.isRequest);
+                final isOfferCluster = cluster.listings.every((l) => l.isOffer);
+
+                final Color markerColor = isMulti
+                    ? (isRequestCluster
+                        ? Colors.teal
+                        : (isOfferCluster ? theme.colorScheme.primary : theme.colorScheme.tertiary))
+                    : (cluster.listings.first.isRequest ? Colors.teal : theme.colorScheme.primary);
+
+                final IconData markerIcon = isMulti
+                    ? (isRequestCluster
+                        ? Icons.luggage_rounded
+                        : (isOfferCluster ? Icons.home_work_rounded : Icons.travel_explore_rounded))
+                    : (cluster.listings.first.isRequest ? Icons.luggage_rounded : Icons.roofing_rounded);
 
                 final markerWidth = isMulti ? (isSelected ? 62.0 : 50.0) : (isSelected ? 54.0 : 44.0);
                 final markerHeight = markerWidth;
@@ -481,7 +585,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                           width: markerWidth,
                           height: markerHeight,
                           decoration: BoxDecoration(
-                            color: isSelected ? theme.colorScheme.primary : theme.colorScheme.surface,
+                            color: isSelected ? markerColor : theme.colorScheme.surface,
                             shape: BoxShape.circle,
                             boxShadow: [
                               BoxShadow(
@@ -491,15 +595,15 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                               ),
                             ],
                             border: Border.all(
-                              color: isSelected ? Colors.white : theme.colorScheme.primary,
+                              color: isSelected ? Colors.white : markerColor,
                               width: isMulti ? 3.0 : 2.5,
                             ),
                           ),
                           child: Center(
                             child: Icon(
-                              isMulti ? Icons.home_work_rounded : Icons.roofing_rounded,
+                              markerIcon,
                               size: isSelected ? 26 : 20,
-                              color: isSelected ? Colors.white : theme.colorScheme.primary,
+                              color: isSelected ? Colors.white : markerColor,
                             ),
                           ),
                         ),
@@ -773,15 +877,39 @@ class _MapClusterPreviewCardState extends ConsumerState<_MapClusterPreviewCard> 
                 overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 2),
-              Text(
-                '${authorProfile?.bestName ?? "Host"} • ${listing.location}',
-                style: TextStyle(
-                  color: theme.colorScheme.primary,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                    decoration: BoxDecoration(
+                      color: listing.isRequest
+                          ? Colors.teal.withValues(alpha: 0.15)
+                          : theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      listing.isRequest ? 'Request' : 'Offer',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: listing.isRequest ? Colors.teal : theme.colorScheme.primary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      '${authorProfile?.bestName ?? (listing.isRequest ? "Traveler" : "Host")} • ${listing.location}',
+                      style: TextStyle(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -836,7 +964,7 @@ class _ListingFeedCard extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Host Info Header
+              // Host / Traveler Info Header
               Row(
                 children: [
                   UserAvatar(
@@ -850,7 +978,7 @@ class _ListingFeedCard extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          authorProfile?.bestName ?? 'Host',
+                          authorProfile?.bestName ?? (listing.isRequest ? 'Traveler' : 'Host'),
                           style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
                         ),
                         Row(
@@ -867,6 +995,34 @@ class _ListingFeedCard extends ConsumerWidget {
                               ),
                             ),
                           ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: listing.isRequest
+                          ? Colors.teal.withValues(alpha: 0.12)
+                          : theme.colorScheme.primaryContainer.withValues(alpha: 0.4),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          listing.isRequest ? Icons.luggage_rounded : Icons.roofing_rounded,
+                          size: 13,
+                          color: listing.isRequest ? Colors.teal : theme.colorScheme.primary,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          listing.isRequest ? 'Request' : 'Offer',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: listing.isRequest ? Colors.teal : theme.colorScheme.primary,
+                          ),
                         ),
                       ],
                     ),
@@ -891,6 +1047,64 @@ class _ListingFeedCard extends ConsumerWidget {
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
+
+              // Dates & Guest Info
+              if (listing.isDateConstrained || listing.maxGuests != null) ...[
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: [
+                    if (listing.isDateConstrained)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: Colors.teal.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: Colors.teal.withValues(alpha: 0.25)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.calendar_today_rounded, size: 12, color: Colors.teal[800]),
+                            const SizedBox(width: 4),
+                            Text(
+                              DateFormatter.formatDateRange(listing.startDate, listing.endDate),
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.teal[800],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    if (listing.maxGuests != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surfaceContainerHigh,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.people_outline_rounded, size: 12, color: theme.colorScheme.onSurfaceVariant),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${listing.isRequest ? "Party" : "Max"}: ${listing.maxGuests}',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ],
             ],
           ),
         ),

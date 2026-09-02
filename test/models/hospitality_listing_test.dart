@@ -146,5 +146,103 @@ void main() {
       final sleepingTag = event.tags.firstWhere((t) => t.isNotEmpty && t[0] == 'sleeping_arrangement');
       expect(sleepingTag[1], 'couch');
     });
+
+    test('Absence Fallback: Missing offer/request category tag defaults to isOffer = true, isRequest = false', () {
+      final nip01Event = Nip01Event(
+        pubKey: authorHex,
+        kind: NostrConstants.classifiedListingKind,
+        tags: [
+          ['d', 'legacy-listing'],
+          ['title', 'Legacy host listing without explicit offer tag'],
+          ['status', 'active'],
+          ['t', 'hospitality'],
+          ['location', 'Madrid, Spain'],
+        ],
+        content: 'I host travelers in Madrid.',
+        createdAt: 1719234800,
+      );
+
+      final listing = HospitalityListing.fromNip01Event(nip01Event);
+      expect(listing, isNotNull);
+      expect(listing!.isOffer, true, reason: 'Absence of tag must default to isOffer = true');
+      expect(listing.isRequest, false, reason: 'Absence of tag must never be a request');
+      expect(listing.isDateConstrained, false);
+      expect(listing.startDate, isNull);
+      expect(listing.endDate, isNull);
+    });
+
+    test('Parses Stay Request with start/end dates and guests', () {
+      final nip01Event = Nip01Event(
+        pubKey: authorHex,
+        kind: NostrConstants.classifiedListingKind,
+        tags: [
+          ['d', 'trip-chicago-1730505600'],
+          ['title', 'Seeking host in Chicago for Architecture Biennial'],
+          ['summary', 'Solo traveler visiting Chicago'],
+          ['location', 'Chicago, IL, USA'],
+          ['g', 'dp3w'],
+          ['status', 'active'],
+          ['published_at', '1730000000'],
+          ['t', 'hospitality'],
+          ['t', 'hospitality-request'],
+          ['type', 'request'],
+          ['start', '1730505600'], // Nov 2, 2024
+          ['end', '1730764800'],   // Nov 5, 2024
+          ['guests', '2'],
+        ],
+        content: 'Looking forward to meeting locals in Chicago!',
+        createdAt: 1730000000,
+      );
+
+      final listing = HospitalityListing.fromNip01Event(nip01Event);
+      expect(listing, isNotNull);
+      expect(listing!.isRequest, true);
+      expect(listing.isOffer, false);
+      expect(listing.isDateConstrained, true);
+      expect(listing.startDate, DateTime.fromMillisecondsSinceEpoch(1730505600 * 1000));
+      expect(listing.endDate, DateTime.fromMillisecondsSinceEpoch(1730764800 * 1000));
+      expect(listing.maxGuests, 2);
+    });
+
+    test('Serializes Stay Request to Nip01Event with start, end, and type tags', () {
+      final startDate = DateTime.fromMillisecondsSinceEpoch(1730505600 * 1000);
+      final endDate = DateTime.fromMillisecondsSinceEpoch(1730764800 * 1000);
+
+      final request = HospitalityListing(
+        eventId: '',
+        authorPubkey: authorHex,
+        dTag: 'trip-tokyo-2025',
+        title: 'Visiting Tokyo in April',
+        summary: 'Solo backpacker',
+        content: 'Exploring Japanese cuisine and culture.',
+        location: 'Tokyo, Japan',
+        geohash: 'xn77',
+        status: NostrConstants.statusActive,
+        publishedAt: DateTime.now(),
+        createdAt: DateTime.now(),
+        startDate: startDate,
+        endDate: endDate,
+        categories: [NostrConstants.topicHospitality, NostrConstants.topicHospitalityRequest],
+        maxGuests: 1,
+      );
+
+      expect(request.isRequest, true);
+      expect(request.isOffer, false);
+
+      final event = request.toNip01Event(authorPubkey: authorHex);
+      final tTags = event.tags.where((t) => t.isNotEmpty && t[0] == 't').map((t) => t[1]).toList();
+      expect(tTags.contains('hospitality'), true);
+      expect(tTags.contains('hospitality-request'), true);
+      expect(tTags.contains('Home'), false);
+
+      final typeTag = event.tags.firstWhere((t) => t.isNotEmpty && t[0] == 'type');
+      expect(typeTag[1], 'request');
+
+      final startTag = event.tags.firstWhere((t) => t.isNotEmpty && t[0] == 'start');
+      expect(startTag[1], '1730505600');
+
+      final endTag = event.tags.firstWhere((t) => t.isNotEmpty && t[0] == 'end');
+      expect(endTag[1], '1730764800');
+    });
   });
 }

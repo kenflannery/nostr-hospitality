@@ -11,10 +11,10 @@ The app is the **reference implementation** establishing open Nostr protocol sta
 - **Sovereign Identity**: Sign in with an `nsec` or generate a new Nostr keypair. Your cryptographic identity (npub/nsec) is your passport across the decentralized web.
 - **Kind 0 User Profiles**: Standard Nostr profile metadata (name, display name, picture, banner, bio, NIP-05, website). Safe, non-destructive profile edits preserve unmanaged fields.
 - **Travel & Community Profiles (Kind 30602)**: Clobber-proof domain profile preserving languages spoken, interaction modes (host, guest, meetup, rideshare, language exchange), demographics, and NIP-39 legacy trust proofs.
-- **NIP-99 Hospitality Hosting Offers**: Hosts publish accommodations (couch, spare room, house swap, tent space) as addressable NIP-99 Classified Listings (`kind: 30402`).
-- **Comprehensive Hosting Preferences**: Standardized tags for sleeping arrangements, max guests, last-minute requests, wheelchair accessibility, kids, pets, drinking, smoking, and parking with strict tri-state nullability.
-- **Geohash Privacy & Cascading Tags**: Adheres strictly to the 4-character geohash privacy policy (`g` tag truncated to 4 chars for ~20-40km bounding area) to protect host home privacy while enabling spatial indexing across relays.
-- **Interactive Map & Feed Views**: Discover page features dual **Interactive Map View** and **List View** powered by `flutter_map` with OpenStreetMap raster tiles, Nominatim geocoding recentering, and custom accommodation markers.
+- **NIP-99 Hospitality Classifieds (Offers & Requests)**: Hosts publish accommodations (couch, spare room, house swap, tent space) as `hospitality-offer`, and travelers broadcast date-bound stay requests (public trips) as `hospitality-request` under `kind: 30402`.
+- **Comprehensive Hosting & Travel Preferences**: Standardized tags for sleeping arrangements, max guests/party size, arrival/departure dates (`start`/`end`), last-minute requests, wheelchair accessibility, kids, pets, drinking, smoking, and parking with strict tri-state nullability.
+- **Geohash Privacy & Cascading Tags**: Adheres strictly to the 4-character geohash privacy policy (`g` tag truncated to 4 chars for ~20-40km bounding area) to protect host home and traveler privacy while enabling spatial indexing across relays.
+- **Interactive Map & Feed Views**: Discover page features dual **Interactive Map View** and **List View** with instant filtering between **All**, **Offers (Hosts)**, and **Requests (Travelers)**.
 - **Interaction References (Kind 7654)**: Portable, historical statements between hosts, guests, and travelers (`kind: 7654`). Builds genuine social reputation that travels with users across any Nostr application.
 - **Factual Reputation Summaries**: Objective aggregations of references (positive / neutral / negative subtotals and host/guest counts) without proprietary star averages or numeric scoring.
 - **NIP-17 Private Direct Messaging**: End-to-end encrypted private messaging using NIP-59 gift-wrapped rumors, allowing hosts and travelers to coordinate stays directly.
@@ -28,7 +28,7 @@ The app is the **reference implementation** establishing open Nostr protocol sta
 |---|---|---|---|
 | `0` | NIP-01 User Metadata | Base profile identity, avatar, display name, bio, and NIP-05 verification | [NIP-01](https://github.com/nostr-protocol/nips/blob/master/01.md) |
 | `30602` | Travel & Community Profile (Draft NIP) | Parameterized profile: languages, demographics, interaction modes, and NIP-39 identity links | [`nips/travel-community-profile.md`](nips/travel-community-profile.md) |
-| `30402` | NIP-99: Hospitality Classified Listings | Addressable hospitality hosting offers and tri-state household preferences | [`nips/hospitality-listings.md`](nips/hospitality-listings.md) |
+| `30402` | NIP-99: Hospitality Classified Listings | Addressable hospitality hosting offers, stay requests, dates (`start`/`end`), and preferences | [`nips/hospitality-listings.md`](nips/hospitality-listings.md) |
 | `7654` | Interaction References (Draft NIP) | Portable interpersonal references, reviews, and historical interaction statements | [`nips/interaction-references.md`](nips/interaction-references.md) |
 | `1059` / `13` / `14` | NIP-17 / NIP-59 Private Messaging | Gift-wrapped end-to-end encrypted direct messaging | [NIP-17](https://github.com/nostr-protocol/nips/blob/master/17.md) / [NIP-59](https://github.com/nostr-protocol/nips/blob/master/59.md) |
 | `10050` / `10002` | NIP-17 / NIP-65 Relay Lists | Outbox and DM relay discoverability | [NIP-65](https://github.com/nostr-protocol/nips/blob/master/65.md) |
@@ -45,36 +45,43 @@ Formal NIP proposals and reference documents for developers building interoperab
 
 ---
 
-### 1. Hospitality Hosting Offers — NIP-99 (Kind 30402)
+### 1. Hospitality Classified Listings (Offers & Requests) — NIP-99 (Kind 30402)
 
-Hosting offers are published as parameterized addressable events (`kind: 30402`) following the **NIP-99 Classified Listings** specification.
+Hospitality listings are published as parameterized addressable events (`kind: 30402`) following the **NIP-99 Classified Listings** specification. The protocol supports both **Hosting Offers** (hosts opening their homes) and **Stay Requests** (travelers seeking accommodation for specific dates).
 
 #### Classification Topics
-Hospitality listings are identified by standard topic tags:
-```json
-["t", "hospitality"],
-["t", "Home"]
-```
+Listings declare their intent using standard Nostr topic tags:
+- **Hosting Offer**: `["t", "hospitality"]`, `["t", "hospitality-offer"]`, `["t", "Home"]`
+- **Stay Request**: `["t", "hospitality"]`, `["t", "hospitality-request"]`
+
+*Absence Fallback Rule*: If a listing is tagged with `["t", "hospitality"]` but omits both `hospitality-offer` and `hospitality-request`, clients **MUST** treat it as a **Hosting Offer** (`isOffer = true`), preserving backward compatibility with legacy listings.
+
+#### Temporal Dates (`start` / `end`)
+- `start`: Unix epoch timestamp string (arrival / check-in date for requests, or start of temporary hosting window).
+- `end`: Unix epoch timestamp string (departure / check-out date for requests, or end of temporary hosting window).
+- Open-ended hosting offers omit `start` and `end`.
 
 #### Geohash Precision & Privacy Policy
-- **Kind 30402 (Hospitality Classifieds)**: Geohashes are strictly truncated to a **maximum of 4 characters** (~39km x 19.5km bounding box) to protect the exact street address and privacy of hosts.
+- **Kind 30402 (Hospitality Classifieds)**: Geohashes are strictly truncated to a **maximum of 4 characters** (~39km x 19.5km bounding box) to protect the exact street address and privacy of hosts and travelers.
 - To enable multi-level proximity queries, listings publish cascading `g` tags (e.g. `["g", "c"]`, `["g", "c2"]`, `["g", "c23"]`, `["g", "c23n"]`).
 - `origin_lat` / `origin_lon` represent the approximate center coordinates of the 4-char geohash box for simple map client pin placement.
 
-#### Hosting Preferences & Home Environment Tags
+#### Preferences & Household Tags
 All preference tags follow **strict tri-state nullability** (absence of tag = unspecified; `"true"` = yes; `"false"` = no):
 
 | Tag Name | Value / Allowed Types | Description |
 |---|---|---|
-| `max_guests` | `"1"`, `"2"`, `"3"`, etc. | Maximum number of simultaneous guests accommodated |
+| `start` | Unix timestamp string | Arrival date (request) or temporary hosting start (offer) |
+| `end` | Unix timestamp string | Departure date (request) or temporary hosting end (offer) |
+| `max_guests` / `guests` | `"1"`, `"2"`, `"3"`, etc. | Maximum capacity (offer) or party size (request) |
 | `last_minute` | `"true"` \| `"false"` | Open to same-day / short-notice requests |
-| `wheelchair` | `"true"` \| `"false"` | Step-free or accessible access |
-| `tent_camping` | `"true"` \| `"false"` | Yard / lawn space available for pitching tents |
-| `kids_allowed` | `"true"` \| `"false"` | Open to hosting families with children |
-| `pets_allowed` | `"true"` \| `"false"` | Open to hosting guests with pets |
-| `drinking_allowed` | `"true"` \| `"false"` | Guests permitted to drink alcohol |
-| `smoking_allowed` | `"no"` \| `"outside"` \| `"yes"` | Smoking policy for guests |
-| `sleeping_arrangement`| `"private_room"` \| `"shared_room"` \| `"couch"` \| `"common_room"` \| `"tent_space"` | Sleeping arrangement offered |
+| `wheelchair` | `"true"` \| `"false"` | Step-free or accessible access needed / offered |
+| `tent_camping` | `"true"` \| `"false"` | Yard / lawn space available or acceptable for tents |
+| `kids_allowed` | `"true"` \| `"false"` | Open to hosting / traveling with children |
+| `pets_allowed` | `"true"` \| `"false"` | Open to hosting / traveling with pets |
+| `drinking_allowed` | `"true"` \| `"false"` | Guests permitted to drink alcohol / traveler drinks |
+| `smoking_allowed` | `"no"` \| `"outside"` \| `"yes"` | Smoking policy for guests / traveler smoking habit |
+| `sleeping_arrangement`| `"private_room"` \| `"shared_room"` \| `"couch"` \| `"common_room"` \| `"tent_space"` | Sleeping arrangement offered / acceptable |
 | `parking` | `"none"` \| `"free_on_premises"` \| `"street"` \| `"paid"` | Vehicle parking accessibility |
 | `parking_details` | string (e.g. `"Driveway parking available"`) | Specific instructions for guest vehicles |
 | `has_housemates` | `"true"` \| `"false"` | Host lives with other housemates/roommates |
@@ -83,47 +90,38 @@ All preference tags follow **strict tri-state nullability** (absence of tag = un
 | `host_drinks` | `"true"` \| `"false"` | Host drinks alcohol at home |
 | `host_smokes` | `"no"` \| `"outside"` \| `"yes"` | Host smokes at home |
 
-#### Example Kind 30402 Listing Event
+#### Example Kind 30402 Stay Request (Public Trip)
 ```json
 {
   "kind": 30402,
   "pubkey": "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
-  "content": "Quiet guest room in Ballard, Seattle. Close to transit, coffee shops, and parks.",
+  "content": "Visiting Chicago for the architecture biennial and local jazz scene. Looking for a host or coffee meetups!",
   "tags": [
-    ["d", "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798-home"],
-    ["title", "Cozy Room in Seattle"],
-    ["summary", "Private guest room for 1-2 travelers near transit."],
-    ["location", "Seattle, Washington, United States"],
+    ["d", "trip-chicago-20261102"],
+    ["title", "Visiting Chicago for Architecture & Jazz"],
+    ["summary", "Solo traveler seeking 3 nights in Chicago."],
+    ["location", "Chicago, Illinois, United States"],
     ["status", "active"],
     ["price", "0", "USD"],
     ["t", "hospitality"],
-    ["t", "Home"],
-    ["g", "c"],
-    ["g", "c2"],
-    ["g", "c23"],
-    ["g", "c23n"],
-    ["origin_lat", "47.6367"],
-    ["origin_lon", "-122.3438"],
-    ["max_guests", "2"],
-    ["last_minute", "true"],
-    ["wheelchair", "false"],
-    ["kids_allowed", "true"],
+    ["t", "hospitality-request"],
+    ["g", "d"],
+    ["g", "dp"],
+    ["g", "dp3"],
+    ["g", "dp3w"],
+    ["origin_lat", "41.8781"],
+    ["origin_lon", "-87.6298"],
+    ["start", "1793577600"],
+    ["end", "1793836800"],
+    ["max_guests", "1"],
     ["pets_allowed", "false"],
-    ["drinking_allowed", "true"],
-    ["smoking_allowed", "outside"],
-    ["sleeping_arrangement", "private_room"],
-    ["parking", "free_on_premises"],
-    ["has_housemates", "false"],
-    ["has_kids", "false"],
-    ["has_pets", "true"],
-    ["host_drinks", "true"],
-    ["host_smokes", "no"],
+    ["wheelchair", "false"],
     ["published_at", "1719234800"]
   ]
 }
 ```
 
-*Status Semantics*: `active` indicates the host is accepting guests; `sold` indicates the offer is currently inactive or closed.
+*Status Semantics*: `active` indicates an open offer or current request; `sold` / `closed` indicates the listing is filled or closed.
 
 ---
 
