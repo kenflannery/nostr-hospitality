@@ -33,7 +33,8 @@ class ProfileScreen extends ConsumerWidget {
     final isOwnProfile = pubkey == null || pubkey == authState?.pubkey;
     final targetPubkey = pubkey ?? authState?.pubkey;
 
-    if (targetPubkey == null || (isOwnProfile && !(authState?.isAuthenticated ?? false))) {
+    if (targetPubkey == null ||
+        (isOwnProfile && !(authState?.isAuthenticated ?? false))) {
       return Scaffold(
         appBar: AppBar(title: const Text('My Profile')),
         body: Center(
@@ -50,7 +51,8 @@ class ProfileScreen extends ConsumerWidget {
                 const SizedBox(height: 16),
                 Text(
                   'Not Authenticated',
-                  style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                  style: theme.textTheme.titleLarge
+                      ?.copyWith(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -77,17 +79,23 @@ class ProfileScreen extends ConsumerWidget {
     }
 
     final profileAsync = ref.watch(userProfileProvider(targetPubkey));
-    final travelProfileAsync = ref.watch(userTravelProfileProvider(targetPubkey));
+    final travelProfileAsync =
+        ref.watch(userTravelProfileProvider(targetPubkey));
     final listingAsync = ref.watch(authorListingProvider(targetPubkey));
-    final authorListingsAsync = ref.watch(authorListingsStreamProvider(targetPubkey));
+    final authorListingsAsync =
+        ref.watch(authorListingsStreamProvider(targetPubkey));
     final summaryAsync = ref.watch(userReferenceSummaryProvider(targetPubkey));
-    final referencesStream = ref.watch(userReferencesStreamProvider(targetPubkey));
+    final referencesStream =
+        ref.watch(userReferencesStreamProvider(targetPubkey));
 
-    final profile = profileAsync.valueOrNull ?? UserProfile(pubkey: targetPubkey);
+    final profile =
+        profileAsync.valueOrNull ?? UserProfile(pubkey: targetPubkey);
     final travelProfile = travelProfileAsync.valueOrNull;
     final listing = listingAsync.valueOrNull;
-    final allAuthorListings = authorListingsAsync.valueOrNull ?? (listing != null ? [listing] : []);
-    final hostingOffer = allAuthorListings.where((l) => l.isOffer).firstOrNull ?? listing;
+    final allAuthorListings =
+        authorListingsAsync.valueOrNull ?? (listing != null ? [listing] : []);
+    final hostingOffer =
+        allAuthorListings.where((l) => l.isOffer).firstOrNull ?? listing;
     final travelRequests = allAuthorListings.where((l) => l.isRequest).toList();
     final summary = summaryAsync.valueOrNull;
     final references = referencesStream.valueOrNull ?? [];
@@ -219,7 +227,8 @@ class ProfileScreen extends ConsumerWidget {
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
-                              if (profile.nip05 != null && profile.nip05!.isNotEmpty) ...[
+                              if (profile.nip05 != null &&
+                                  profile.nip05!.isNotEmpty) ...[
                                 const SizedBox(height: 2),
                                 Row(
                                   children: [
@@ -232,7 +241,8 @@ class ProfileScreen extends ConsumerWidget {
                                     Expanded(
                                       child: Text(
                                         profile.nip05!,
-                                        style: theme.textTheme.bodySmall?.copyWith(
+                                        style:
+                                            theme.textTheme.bodySmall?.copyWith(
                                           color: theme.colorScheme.primary,
                                           fontWeight: FontWeight.w600,
                                         ),
@@ -255,14 +265,18 @@ class ProfileScreen extends ConsumerWidget {
                                   ),
                                   const SizedBox(width: 4),
                                   IconButton(
-                                    icon: const Icon(Icons.copy_rounded, size: 14),
+                                    icon: const Icon(Icons.copy_rounded,
+                                        size: 14),
                                     tooltip: 'Copy npub',
                                     padding: EdgeInsets.zero,
                                     constraints: const BoxConstraints(),
                                     onPressed: () {
                                       Nip19Helper.shortenKey(profile.npub);
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('npub copied to clipboard!')),
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                            content: Text(
+                                                'npub copied to clipboard!')),
                                       );
                                     },
                                   ),
@@ -275,24 +289,33 @@ class ProfileScreen extends ConsumerWidget {
                     ),
 
                     // Traveler Nickname & Current Location Badges (Kind 30602)
-                    if (travelProfile != null && (travelProfile.name != null || travelProfile.formattedCurrent != null)) ...[
+                    if (travelProfile != null &&
+                        (travelProfile.name != null ||
+                            travelProfile.formattedCurrent != null)) ...[
                       const SizedBox(height: 12),
                       Wrap(
                         spacing: 8,
                         runSpacing: 6,
                         children: [
-                          if (travelProfile.name != null && travelProfile.name!.isNotEmpty)
+                          if (travelProfile.name != null &&
+                              travelProfile.name!.isNotEmpty)
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 4),
                               decoration: BoxDecoration(
-                                color: theme.colorScheme.primaryContainer.withValues(alpha: 0.4),
+                                color: theme.colorScheme.primaryContainer
+                                    .withValues(alpha: 0.4),
                                 borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.3)),
+                                border: Border.all(
+                                    color: theme.colorScheme.primary
+                                        .withValues(alpha: 0.3)),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.badge_outlined, size: 14, color: theme.colorScheme.primary),
+                                  Icon(Icons.badge_outlined,
+                                      size: 14,
+                                      color: theme.colorScheme.primary),
                                   const SizedBox(width: 4),
                                   Text(
                                     travelProfile.name!,
@@ -307,23 +330,30 @@ class ProfileScreen extends ConsumerWidget {
                             ),
                           if (travelProfile.formattedCurrent != null)
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 4),
                               decoration: BoxDecoration(
-                                color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.4),
+                                color: theme.colorScheme.secondaryContainer
+                                    .withValues(alpha: 0.4),
                                 borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: theme.colorScheme.secondary.withValues(alpha: 0.3)),
+                                border: Border.all(
+                                    color: theme.colorScheme.secondary
+                                        .withValues(alpha: 0.3)),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.explore_outlined, size: 14, color: theme.colorScheme.secondary),
+                                  Icon(Icons.explore_outlined,
+                                      size: 14,
+                                      color: theme.colorScheme.secondary),
                                   const SizedBox(width: 4),
                                   Text(
                                     'In ${travelProfile.formattedCurrent}',
                                     style: TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w600,
-                                      color: theme.colorScheme.onSecondaryContainer,
+                                      color: theme
+                                          .colorScheme.onSecondaryContainer,
                                     ),
                                   ),
                                 ],
@@ -344,7 +374,8 @@ class ProfileScreen extends ConsumerWidget {
                               onPressed: () {
                                 Navigator.of(context).push(
                                   MaterialPageRoute(
-                                    builder: (_) => EditProfileScreen(currentProfile: profile),
+                                    builder: (_) => EditProfileScreen(
+                                        currentProfile: profile),
                                   ),
                                 );
                               },
@@ -365,7 +396,8 @@ class ProfileScreen extends ConsumerWidget {
                                   ),
                                 );
                               },
-                              icon: const Icon(Icons.mail_outline_rounded, size: 18),
+                              icon: const Icon(Icons.mail_outline_rounded,
+                                  size: 18),
                               label: const Text('Message'),
                             ),
                           ),
@@ -383,7 +415,8 @@ class ProfileScreen extends ConsumerWidget {
                                   ),
                                 );
                               },
-                              icon: const Icon(Icons.rate_review_outlined, size: 18),
+                              icon: const Icon(Icons.rate_review_outlined,
+                                  size: 18),
                               label: const Text('Leave Reference'),
                             ),
                           ),
@@ -395,19 +428,24 @@ class ProfileScreen extends ConsumerWidget {
                       const SizedBox(height: 16),
                       SelectableText(
                         profile.about!,
-                        style: theme.textTheme.bodyMedium?.copyWith(height: 1.5),
+                        style:
+                            theme.textTheme.bodyMedium?.copyWith(height: 1.5),
                       ),
                     ],
 
-                    if (profile.website != null && profile.website!.isNotEmpty) ...[
+                    if (profile.website != null &&
+                        profile.website!.isNotEmpty) ...[
                       const SizedBox(height: 8),
                       InkWell(
                         onTap: () async {
                           final rawUrl = profile.website!.trim();
-                          final formattedUrl = rawUrl.startsWith('http') ? rawUrl : 'https://$rawUrl';
+                          final formattedUrl = rawUrl.startsWith('http')
+                              ? rawUrl
+                              : 'https://$rawUrl';
                           final uri = Uri.tryParse(formattedUrl);
                           if (uri != null && await canLaunchUrl(uri)) {
-                            await launchUrl(uri, mode: LaunchMode.externalApplication);
+                            await launchUrl(uri,
+                                mode: LaunchMode.externalApplication);
                           }
                         },
                         borderRadius: BorderRadius.circular(6),
@@ -416,7 +454,8 @@ class ProfileScreen extends ConsumerWidget {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.language_rounded, size: 14, color: theme.colorScheme.primary),
+                              Icon(Icons.language_rounded,
+                                  size: 14, color: theme.colorScheme.primary),
                               const SizedBox(width: 6),
                               Text(
                                 profile.website!,
@@ -438,11 +477,13 @@ class ProfileScreen extends ConsumerWidget {
 
                     Row(
                       children: [
-                        Icon(Icons.travel_explore_rounded, color: theme.colorScheme.primary),
+                        Icon(Icons.travel_explore_rounded,
+                            color: theme.colorScheme.primary),
                         const SizedBox(width: 8),
                         Text(
                           'Travel & Community Profile',
-                          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                          style: theme.textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.bold),
                         ),
                         const Spacer(),
                         if (isOwnProfile)
@@ -450,12 +491,18 @@ class ProfileScreen extends ConsumerWidget {
                             onPressed: () {
                               Navigator.of(context).push(
                                 MaterialPageRoute(
-                                  builder: (_) => TravelProfileEditorScreen(initialProfile: travelProfile),
+                                  builder: (_) => TravelProfileEditorScreen(
+                                      initialProfile: travelProfile),
                                 ),
                               );
                             },
-                            icon: Icon(travelProfile == null ? Icons.add_rounded : Icons.edit_outlined, size: 16),
-                            label: Text(travelProfile == null ? 'Set Up' : 'Edit'),
+                            icon: Icon(
+                                travelProfile == null
+                                    ? Icons.add_rounded
+                                    : Icons.edit_outlined,
+                                size: 16),
+                            label:
+                                Text(travelProfile == null ? 'Set Up' : 'Edit'),
                           ),
                       ],
                     ),
@@ -474,11 +521,12 @@ class ProfileScreen extends ConsumerWidget {
                             children: [
                               Text(
                                 'Set Up Your Travel & Community Profile (Kind 30602)',
-                                style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                                style: theme.textTheme.titleSmall
+                                    ?.copyWith(fontWeight: FontWeight.bold),
                               ),
                               const SizedBox(height: 6),
                               Text(
-                                'Share your languages, travel philosophy, home base, and link your Couchsurfing/Trustroots accounts without clobbering your global Nostr profile.',
+                                'Share your travel bio & photo(s), languages spoken, home base, and link your other travel networks like Couchsurfing, Trustroots, Trip Hopping, etc.',
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   color: theme.colorScheme.onSurfaceVariant,
                                   height: 1.4,
@@ -489,11 +537,13 @@ class ProfileScreen extends ConsumerWidget {
                                 onPressed: () {
                                   Navigator.of(context).push(
                                     MaterialPageRoute(
-                                      builder: (_) => const TravelProfileEditorScreen(),
+                                      builder: (_) =>
+                                          const TravelProfileEditorScreen(),
                                     ),
                                   );
                                 },
-                                icon: const Icon(Icons.badge_outlined, size: 16),
+                                icon:
+                                    const Icon(Icons.badge_outlined, size: 16),
                                 label: const Text('Complete Travel Profile'),
                               ),
                             ],
@@ -505,7 +555,8 @@ class ProfileScreen extends ConsumerWidget {
                         padding: const EdgeInsets.symmetric(vertical: 8.0),
                         child: Text(
                           'This traveler has not published a Kind 30602 travel profile yet.',
-                          style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.outline),
+                          style: theme.textTheme.bodySmall
+                              ?.copyWith(color: theme.colorScheme.outline),
                         ),
                       ),
 
@@ -533,12 +584,17 @@ class ProfileScreen extends ConsumerWidget {
                             onPressed: () {
                               Navigator.of(context).push(
                                 MaterialPageRoute(
-                                  builder: (_) => ListingEditorScreen(initialListing: hostingOffer, initialIsRequest: false),
+                                  builder: (_) => ListingEditorScreen(
+                                      initialListing: hostingOffer,
+                                      initialIsRequest: false),
                                 ),
                               );
                             },
-                            icon: Icon(hostingOffer == null ? Icons.add : Icons.edit, size: 16),
-                            label: Text(hostingOffer == null ? 'Create Offer' : 'Edit'),
+                            icon: Icon(
+                                hostingOffer == null ? Icons.add : Icons.edit,
+                                size: 16),
+                            label: Text(
+                                hostingOffer == null ? 'Create Offer' : 'Edit'),
                           ),
                       ],
                     ),
@@ -552,7 +608,8 @@ class ProfileScreen extends ConsumerWidget {
                           onTap: () {
                             Navigator.of(context).push(
                               MaterialPageRoute(
-                                builder: (_) => ListingDetailScreen(listing: hostingOffer),
+                                builder: (_) =>
+                                    ListingDetailScreen(listing: hostingOffer),
                               ),
                             );
                           },
@@ -565,17 +622,24 @@ class ProfileScreen extends ConsumerWidget {
                                 Row(
                                   children: [
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 2),
                                       decoration: BoxDecoration(
                                         color: hostingOffer.isActive
-                                            ? AppTheme.positiveGreen.withValues(alpha: 0.12)
-                                            : Colors.grey.withValues(alpha: 0.12),
+                                            ? AppTheme.positiveGreen
+                                                .withValues(alpha: 0.12)
+                                            : Colors.grey
+                                                .withValues(alpha: 0.12),
                                         borderRadius: BorderRadius.circular(6),
                                       ),
                                       child: Text(
-                                        hostingOffer.isActive ? 'Accepting Guests' : 'Inactive',
+                                        hostingOffer.isActive
+                                            ? 'Accepting Guests'
+                                            : 'Inactive',
                                         style: TextStyle(
-                                          color: hostingOffer.isActive ? AppTheme.positiveGreen : Colors.grey,
+                                          color: hostingOffer.isActive
+                                              ? AppTheme.positiveGreen
+                                              : Colors.grey,
                                           fontWeight: FontWeight.bold,
                                           fontSize: 11,
                                         ),
@@ -591,7 +655,8 @@ class ProfileScreen extends ConsumerWidget {
                                     Text(
                                       hostingOffer.location,
                                       style: TextStyle(
-                                        color: theme.colorScheme.onSurfaceVariant,
+                                        color:
+                                            theme.colorScheme.onSurfaceVariant,
                                         fontSize: 12,
                                         fontWeight: FontWeight.w500,
                                       ),
@@ -609,10 +674,14 @@ class ProfileScreen extends ConsumerWidget {
                                   const SizedBox(height: 4),
                                   Row(
                                     children: [
-                                      Icon(Icons.calendar_today_rounded, size: 12, color: theme.colorScheme.primary),
+                                      Icon(Icons.calendar_today_rounded,
+                                          size: 12,
+                                          color: theme.colorScheme.primary),
                                       const SizedBox(width: 4),
                                       Text(
-                                        DateFormatter.formatDateRange(hostingOffer.startDate, hostingOffer.endDate),
+                                        DateFormatter.formatDateRange(
+                                            hostingOffer.startDate,
+                                            hostingOffer.endDate),
                                         style: TextStyle(
                                           fontSize: 12,
                                           fontWeight: FontWeight.w600,
@@ -673,7 +742,8 @@ class ProfileScreen extends ConsumerWidget {
                             onPressed: () {
                               Navigator.of(context).push(
                                 MaterialPageRoute(
-                                  builder: (_) => const ListingEditorScreen(initialIsRequest: true),
+                                  builder: (_) => const ListingEditorScreen(
+                                      initialIsRequest: true),
                                 ),
                               );
                             },
@@ -694,7 +764,8 @@ class ProfileScreen extends ConsumerWidget {
                                 onTap: () {
                                   Navigator.of(context).push(
                                     MaterialPageRoute(
-                                      builder: (_) => ListingDetailScreen(listing: req),
+                                      builder: (_) =>
+                                          ListingDetailScreen(listing: req),
                                     ),
                                   );
                                 },
@@ -702,22 +773,31 @@ class ProfileScreen extends ConsumerWidget {
                                 child: Padding(
                                   padding: const EdgeInsets.all(16.0),
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Row(
                                         children: [
                                           Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 8, vertical: 2),
                                             decoration: BoxDecoration(
                                               color: req.isActive
-                                                  ? Colors.teal.withValues(alpha: 0.15)
-                                                  : Colors.grey.withValues(alpha: 0.12),
-                                              borderRadius: BorderRadius.circular(6),
+                                                  ? Colors.teal
+                                                      .withValues(alpha: 0.15)
+                                                  : Colors.grey
+                                                      .withValues(alpha: 0.12),
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
                                             ),
                                             child: Text(
-                                              req.isActive ? 'Active Trip' : 'Closed',
+                                              req.isActive
+                                                  ? 'Active Trip'
+                                                  : 'Closed',
                                               style: TextStyle(
-                                                color: req.isActive ? Colors.teal : Colors.grey,
+                                                color: req.isActive
+                                                    ? Colors.teal
+                                                    : Colors.grey,
                                                 fontWeight: FontWeight.bold,
                                                 fontSize: 11,
                                               ),
@@ -733,7 +813,8 @@ class ProfileScreen extends ConsumerWidget {
                                           Text(
                                             req.location,
                                             style: TextStyle(
-                                              color: theme.colorScheme.onSurfaceVariant,
+                                              color: theme
+                                                  .colorScheme.onSurfaceVariant,
                                               fontSize: 12,
                                               fontWeight: FontWeight.w500,
                                             ),
@@ -743,7 +824,8 @@ class ProfileScreen extends ConsumerWidget {
                                       const SizedBox(height: 8),
                                       Text(
                                         req.title,
-                                        style: theme.textTheme.titleSmall?.copyWith(
+                                        style: theme.textTheme.titleSmall
+                                            ?.copyWith(
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
@@ -751,10 +833,13 @@ class ProfileScreen extends ConsumerWidget {
                                         const SizedBox(height: 4),
                                         Row(
                                           children: [
-                                            Icon(Icons.calendar_today_rounded, size: 12, color: Colors.teal[700]),
+                                            Icon(Icons.calendar_today_rounded,
+                                                size: 12,
+                                                color: Colors.teal[700]),
                                             const SizedBox(width: 4),
                                             Text(
-                                              DateFormatter.formatDateRange(req.startDate, req.endDate),
+                                              DateFormatter.formatDateRange(
+                                                  req.startDate, req.endDate),
                                               style: TextStyle(
                                                 fontSize: 12,
                                                 fontWeight: FontWeight.w600,
@@ -768,8 +853,10 @@ class ProfileScreen extends ConsumerWidget {
                                         const SizedBox(height: 4),
                                         Text(
                                           req.summary,
-                                          style: theme.textTheme.bodySmall?.copyWith(
-                                            color: theme.colorScheme.onSurfaceVariant,
+                                          style: theme.textTheme.bodySmall
+                                              ?.copyWith(
+                                            color: theme
+                                                .colorScheme.onSurfaceVariant,
                                           ),
                                           maxLines: 2,
                                           overflow: TextOverflow.ellipsis,
@@ -874,7 +961,8 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildTravelProfileCard(BuildContext context, ThemeData theme, TravelProfile travelProfile) {
+  Widget _buildTravelProfileCard(
+      BuildContext context, ThemeData theme, TravelProfile travelProfile) {
     return Card(
       margin: EdgeInsets.zero,
       color: theme.colorScheme.surfaceContainerLow,
@@ -905,22 +993,34 @@ class ProfileScreen extends ConsumerWidget {
                 spacing: 12,
                 runSpacing: 8,
                 children: [
-                  if (travelProfile.name != null && travelProfile.name!.isNotEmpty)
-                    _buildInfoBadge(theme, Icons.badge_outlined, travelProfile.name!),
+                  if (travelProfile.name != null &&
+                      travelProfile.name!.isNotEmpty)
+                    _buildInfoBadge(
+                        theme, Icons.badge_outlined, travelProfile.name!),
                   if (travelProfile.formattedCurrent != null)
-                    _buildInfoBadge(theme, Icons.explore_outlined, 'Currently in ${travelProfile.formattedCurrent}'),
+                    _buildInfoBadge(theme, Icons.explore_outlined,
+                        'Currently in ${travelProfile.formattedCurrent}'),
                   if (travelProfile.formattedHome != null)
-                    _buildInfoBadge(theme, Icons.place_outlined, 'Lives in ${travelProfile.formattedHome}'),
+                    _buildInfoBadge(theme, Icons.place_outlined,
+                        'Lives in ${travelProfile.formattedHome}'),
                   if (travelProfile.formattedOrigin != null)
-                    _buildInfoBadge(theme, Icons.flight_takeoff_rounded, 'From ${travelProfile.formattedOrigin}'),
+                    _buildInfoBadge(theme, Icons.flight_takeoff_rounded,
+                        'From ${travelProfile.formattedOrigin}'),
                   if (travelProfile.gender != null)
-                    _buildInfoBadge(theme, Icons.person_outline_rounded, travelProfile.gender![0].toUpperCase() + travelProfile.gender!.substring(1)),
+                    _buildInfoBadge(
+                        theme,
+                        Icons.person_outline_rounded,
+                        travelProfile.gender![0].toUpperCase() +
+                            travelProfile.gender!.substring(1)),
                   if (travelProfile.calculatedAge != null)
-                    _buildInfoBadge(theme, Icons.cake_outlined, '${travelProfile.calculatedAge} yrs old'),
+                    _buildInfoBadge(theme, Icons.cake_outlined,
+                        '${travelProfile.calculatedAge} yrs old'),
                   if (travelProfile.occupation != null)
-                    _buildInfoBadge(theme, Icons.work_outline_rounded, travelProfile.occupation!),
+                    _buildInfoBadge(theme, Icons.work_outline_rounded,
+                        travelProfile.occupation!),
                   if (travelProfile.education != null)
-                    _buildInfoBadge(theme, Icons.school_outlined, travelProfile.education!),
+                    _buildInfoBadge(
+                        theme, Icons.school_outlined, travelProfile.education!),
                 ],
               ),
               const SizedBox(height: 16),
@@ -928,7 +1028,9 @@ class ProfileScreen extends ConsumerWidget {
 
             // Travel & Lifestyle Photos
             if (travelProfile.images.isNotEmpty) ...[
-              Text('Photos & Adventures', style: theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.bold)),
+              Text('Photos & Adventures',
+                  style: theme.textTheme.labelMedium
+                      ?.copyWith(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               SizedBox(
                 height: 110,
@@ -943,7 +1045,8 @@ class ProfileScreen extends ConsumerWidget {
                         showDialog(
                           context: context,
                           builder: (dCtx) => Dialog(
-                            backgroundColor: Colors.black.withValues(alpha: 0.85),
+                            backgroundColor:
+                                Colors.black.withValues(alpha: 0.85),
                             insetPadding: const EdgeInsets.all(12),
                             child: Stack(
                               alignment: Alignment.topRight,
@@ -951,14 +1054,16 @@ class ProfileScreen extends ConsumerWidget {
                                 Center(
                                   child: ClipRRect(
                                     borderRadius: BorderRadius.circular(16),
-                                    child: Image.network(imgUrl, fit: BoxFit.contain),
+                                    child: Image.network(imgUrl,
+                                        fit: BoxFit.contain),
                                   ),
                                 ),
                                 Positioned(
                                   top: 10,
                                   right: 10,
                                   child: IconButton(
-                                    icon: const Icon(Icons.close_rounded, color: Colors.white, size: 28),
+                                    icon: const Icon(Icons.close_rounded,
+                                        color: Colors.white, size: 28),
                                     onPressed: () => Navigator.of(dCtx).pop(),
                                   ),
                                 ),
@@ -978,7 +1083,8 @@ class ProfileScreen extends ConsumerWidget {
                             width: 110,
                             height: 110,
                             color: Colors.grey[800],
-                            child: const Icon(Icons.broken_image_rounded, color: Colors.white54),
+                            child: const Icon(Icons.broken_image_rounded,
+                                color: Colors.white54),
                           ),
                         ),
                       ),
@@ -991,21 +1097,25 @@ class ProfileScreen extends ConsumerWidget {
 
             // Languages
             if (travelProfile.languages.isNotEmpty) ...[
-              Text('Languages', style: theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.bold)),
+              Text('Languages',
+                  style: theme.textTheme.labelMedium
+                      ?.copyWith(fontWeight: FontWeight.bold)),
               const SizedBox(height: 6),
               Wrap(
                 spacing: 6,
                 runSpacing: 6,
                 children: travelProfile.languages.map((l) {
                   return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
                       color: theme.colorScheme.surfaceContainerHigh,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                       l.displayName,
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                      style: const TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.w600),
                     ),
                   );
                 }).toList(),
@@ -1015,16 +1125,20 @@ class ProfileScreen extends ConsumerWidget {
 
             // Interests
             if (travelProfile.interests.isNotEmpty) ...[
-              Text('Interests', style: theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.bold)),
+              Text('Interests',
+                  style: theme.textTheme.labelMedium
+                      ?.copyWith(fontWeight: FontWeight.bold)),
               const SizedBox(height: 6),
               Wrap(
                 spacing: 6,
                 runSpacing: 6,
                 children: travelProfile.interests.map((t) {
                   return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
+                      color: theme.colorScheme.primaryContainer
+                          .withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
@@ -1043,7 +1157,9 @@ class ProfileScreen extends ConsumerWidget {
 
             // Linked Verifications (NIP-39)
             if (travelProfile.externalIdentities.isNotEmpty) ...[
-              Text('Verified & Linked Networks', style: theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.bold)),
+              Text('Verified & Linked Networks',
+                  style: theme.textTheme.labelMedium
+                      ?.copyWith(fontWeight: FontWeight.bold)),
               const SizedBox(height: 6),
               Wrap(
                 spacing: 8,
@@ -1054,11 +1170,14 @@ class ProfileScreen extends ConsumerWidget {
                         ? () async {
                             final uri = Uri.tryParse(id.url);
                             if (uri != null && await canLaunchUrl(uri)) {
-                              await launchUrl(uri, mode: LaunchMode.externalApplication);
+                              await launchUrl(uri,
+                                  mode: LaunchMode.externalApplication);
                             } else {
                               if (context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('Could not open: ${id.url}')),
+                                  SnackBar(
+                                      content:
+                                          Text('Could not open: ${id.url}')),
                                 );
                               }
                             }
@@ -1066,9 +1185,11 @@ class ProfileScreen extends ConsumerWidget {
                         : null,
                     borderRadius: BorderRadius.circular(8),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        border: Border.all(color: theme.colorScheme.outlineVariant),
+                        border:
+                            Border.all(color: theme.colorScheme.outlineVariant),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
@@ -1078,7 +1199,8 @@ class ProfileScreen extends ConsumerWidget {
                           const SizedBox(width: 4),
                           Text(
                             '${id.platformName}: @${id.username}',
-                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                            style: const TextStyle(
+                                fontSize: 12, fontWeight: FontWeight.w500),
                           ),
                         ],
                       ),

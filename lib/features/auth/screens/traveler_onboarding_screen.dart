@@ -177,14 +177,14 @@ class _TravelerOnboardingScreenState extends ConsumerState<TravelerOnboardingScr
                   TextFormField(
                     controller: _nameController,
                     decoration: const InputDecoration(
-                      labelText: 'Display Name / Traveler Name *',
-                      hintText: 'e.g. Alex Traveler, Maya Nomad',
+                      labelText: 'Display Name *',
+                      hintText: 'e.g. Alex, Maya',
                       prefixIcon: Icon(Icons.person_outline_rounded, size: 20),
                     ),
                     textCapitalization: TextCapitalization.words,
                     validator: (val) {
                       if (val == null || val.trim().isEmpty) {
-                        return 'Please enter your name or alias';
+                        return 'Please enter your display name';
                       }
                       return null;
                     },
@@ -193,9 +193,10 @@ class _TravelerOnboardingScreenState extends ConsumerState<TravelerOnboardingScr
                   TextFormField(
                     controller: _aboutController,
                     decoration: const InputDecoration(
-                      labelText: 'Bio / About You (optional)',
-                      hintText: 'e.g. Traveling through South America, cyclist, love board games...',
+                      labelText: 'Universal Nostr Bio (optional)',
+                      hintText: 'A short sentence or two introducing yourself across Nostr apps...',
                       prefixIcon: Icon(Icons.info_outline_rounded, size: 20),
+                      helperText: 'Visible across all Nostr clients. Feel free to keep it a sentence or two!',
                     ),
                     maxLines: 2,
                   ),

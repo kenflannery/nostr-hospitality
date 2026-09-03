@@ -55,7 +55,22 @@ class _TravelProfileEditorScreenState extends ConsumerState<TravelProfileEditorS
     super.initState();
     final init = widget.initialProfile;
 
-    _nameController = TextEditingController(text: init?.name ?? '');
+    String initialName = init?.name ?? '';
+    if (initialName.isEmpty) {
+      final authState = ref.read(authStateProvider).valueOrNull;
+      if (authState?.pubkey != null) {
+        final kind0Profile = ref.read(userProfileProvider(authState!.pubkey!)).valueOrNull;
+        if (kind0Profile != null) {
+          if (kind0Profile.displayName != null && kind0Profile.displayName!.trim().isNotEmpty) {
+            initialName = kind0Profile.displayName!.trim();
+          } else if (kind0Profile.name != null && kind0Profile.name!.trim().isNotEmpty) {
+            initialName = kind0Profile.name!.trim();
+          }
+        }
+      }
+    }
+
+    _nameController = TextEditingController(text: initialName);
     _contentController = TextEditingController(text: init?.content ?? '');
     _originCityController = TextEditingController(text: init?.originCity ?? '');
     _originCountry = init?.originCountry;
@@ -466,7 +481,7 @@ class _TravelProfileEditorScreenState extends ConsumerState<TravelProfileEditorS
         child: ListView(
           padding: const EdgeInsets.all(20.0),
           children: [
-            // --- SECTION 1: Traveler Name & Identity ---
+            // --- SECTION 1: Travel Profile Name ---
             Card(
               margin: EdgeInsets.zero,
               child: Padding(
@@ -479,14 +494,14 @@ class _TravelProfileEditorScreenState extends ConsumerState<TravelProfileEditorS
                         Icon(Icons.badge_outlined, color: theme.colorScheme.primary),
                         const SizedBox(width: 8),
                         Text(
-                          'Travel Identity & Nickname',
+                          'Travel Profile Name',
                           style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                         ),
                       ],
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Your preferred name, nickname, or trail name for travel & hospitality (e.g. NomadAlice or Ken).',
+                      'Your preferred display name across nostr travel apps.',
                       style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                     ),
                     const SizedBox(height: 14),
@@ -494,8 +509,8 @@ class _TravelProfileEditorScreenState extends ConsumerState<TravelProfileEditorS
                     TextFormField(
                       controller: _nameController,
                       decoration: const InputDecoration(
-                        labelText: 'Traveler Name / Nickname',
-                        hintText: 'e.g. NomadAlice or Ken',
+                        labelText: 'Display Name / Nickname',
+                        hintText: 'e.g. Alex Nomad or Maya',
                         prefixIcon: Icon(Icons.person_outline_rounded),
                       ),
                     ),
