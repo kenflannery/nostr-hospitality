@@ -274,13 +274,62 @@ class ProfileScreen extends ConsumerWidget {
                       ],
                     ),
 
-                    // Active Interaction Modes (Kind 30602)
-                    if (travelProfile != null && travelProfile.modes.isNotEmpty) ...[
-                      const SizedBox(height: 14),
+                    // Traveler Nickname & Current Location Badges (Kind 30602)
+                    if (travelProfile != null && (travelProfile.name != null || travelProfile.formattedCurrent != null)) ...[
+                      const SizedBox(height: 12),
                       Wrap(
-                        spacing: 6,
+                        spacing: 8,
                         runSpacing: 6,
-                        children: travelProfile.modes.map((m) => _buildModePill(theme, m)).toList(),
+                        children: [
+                          if (travelProfile.name != null && travelProfile.name!.isNotEmpty)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.primaryContainer.withValues(alpha: 0.4),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.3)),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.badge_outlined, size: 14, color: theme.colorScheme.primary),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    travelProfile.name!,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: theme.colorScheme.primary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          if (travelProfile.formattedCurrent != null)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.4),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: theme.colorScheme.secondary.withValues(alpha: 0.3)),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.explore_outlined, size: 14, color: theme.colorScheme.secondary),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'In ${travelProfile.formattedCurrent}',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: theme.colorScheme.onSecondaryContainer,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
                       ),
                     ],
 
@@ -825,62 +874,6 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildModePill(ThemeData theme, String mode) {
-    String label;
-    IconData icon;
-    Color color = theme.colorScheme.primary;
-
-    switch (mode) {
-      case 'host':
-        label = 'Host';
-        icon = Icons.home_rounded;
-        break;
-      case 'guest':
-        label = 'Traveler';
-        icon = Icons.backpack_rounded;
-        break;
-      case 'meetup':
-        label = 'Meetups';
-        icon = Icons.coffee_rounded;
-        break;
-      case 'rideshare':
-        label = 'Rideshare';
-        icon = Icons.directions_car_rounded;
-        break;
-      case 'language_exchange':
-        label = 'Language Exchange';
-        icon = Icons.forum_rounded;
-        break;
-      default:
-        label = mode;
-        icon = Icons.star_outline_rounded;
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildTravelProfileCard(BuildContext context, ThemeData theme, TravelProfile travelProfile) {
     return Card(
       margin: EdgeInsets.zero,
@@ -899,16 +892,23 @@ class ProfileScreen extends ConsumerWidget {
               const SizedBox(height: 16),
             ],
 
-            // Demographics & Origins
-            if (travelProfile.formattedOrigin != null ||
+            // Demographics, Nickname, Locations
+            if (travelProfile.name != null ||
+                travelProfile.formattedCurrent != null ||
                 travelProfile.formattedHome != null ||
+                travelProfile.formattedOrigin != null ||
                 travelProfile.gender != null ||
                 travelProfile.calculatedAge != null ||
-                travelProfile.occupation != null) ...[
+                travelProfile.occupation != null ||
+                travelProfile.education != null) ...[
               Wrap(
                 spacing: 12,
                 runSpacing: 8,
                 children: [
+                  if (travelProfile.name != null && travelProfile.name!.isNotEmpty)
+                    _buildInfoBadge(theme, Icons.badge_outlined, travelProfile.name!),
+                  if (travelProfile.formattedCurrent != null)
+                    _buildInfoBadge(theme, Icons.explore_outlined, 'Currently in ${travelProfile.formattedCurrent}'),
                   if (travelProfile.formattedHome != null)
                     _buildInfoBadge(theme, Icons.place_outlined, 'Lives in ${travelProfile.formattedHome}'),
                   if (travelProfile.formattedOrigin != null)
@@ -916,9 +916,11 @@ class ProfileScreen extends ConsumerWidget {
                   if (travelProfile.gender != null)
                     _buildInfoBadge(theme, Icons.person_outline_rounded, travelProfile.gender![0].toUpperCase() + travelProfile.gender!.substring(1)),
                   if (travelProfile.calculatedAge != null)
-                    _buildInfoBadge(theme, Icons.cake_outlined, '~${travelProfile.calculatedAge} yrs old'),
+                    _buildInfoBadge(theme, Icons.cake_outlined, '${travelProfile.calculatedAge} yrs old'),
                   if (travelProfile.occupation != null)
                     _buildInfoBadge(theme, Icons.work_outline_rounded, travelProfile.occupation!),
+                  if (travelProfile.education != null)
+                    _buildInfoBadge(theme, Icons.school_outlined, travelProfile.education!),
                 ],
               ),
               const SizedBox(height: 16),

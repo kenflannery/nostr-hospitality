@@ -1,4 +1,5 @@
 import 'package:ndk/entities.dart';
+import '../core/constants/country_constants.dart';
 import '../core/constants/nostr_constants.dart';
 
 /// Language proficiency representation (ISO 639-1 code + level).
@@ -108,7 +109,7 @@ class ExternalIdentity {
 /// Domain model representing a NIP-XX (Kind 30602) Travel & Community Profile.
 ///
 /// Decentralized, parameterizable profile event extending Kind 0 with real-world
-/// travel identity, languages, interaction modes, and cross-platform verifications.
+/// travel identity, languages, nomad locations, and cross-platform verifications.
 class TravelProfile {
   final String eventId;
   final String authorPubkey;
@@ -116,23 +117,29 @@ class TravelProfile {
   final String content; // Travel story, philosophy, lifestyle
   final DateTime createdAt;
 
-  // Personal Demographics (Self-Sovereign & Strictly Optional)
+  // Travel Identity & Demographics (Self-Sovereign & Strictly Optional)
+  final String? name; // Traveler nickname / trail name / preferred travel name
   final String? gender;
   final int? birthYear;
-  final String? originCountry;
+  final int? birthMonth; // 1 - 12
+  final int? birthDay; // 1 - 31
+
+  // Geographical Background & Mobility
+  final String? originCountry; // ISO 3166-1 alpha-2 code (e.g. "DE")
   final String? originCity;
-  final String? homeCountry;
+  final String? homeCountry; // ISO 3166-1 alpha-2 code (e.g. "FR")
   final String? homeCity;
+  final String? currentCountry; // ISO 3166-1 alpha-2 code (e.g. "MX")
+  final String? currentCity;
+  final List<String> geohashes; // Cascading geohashes 3-5 chars for active location
+
   final String? occupation;
   final String? education;
 
   // Languages Spoken
   final List<LanguageProficiency> languages;
 
-  // Active Interaction Modes ('host', 'guest', 'meetup', 'rideshare', 'language_exchange')
-  final List<String> modes;
-
-  // Interests / Topics ('hiking', 'cooking', 'cycling', 'nostr')
+  // Interests / Topics ('hiking', 'cooking', 'cycling', 'nostr', 'meetup')
   final List<String> interests;
 
   // NIP-39 External Verifications & Cross-Platform Identities
@@ -149,16 +156,21 @@ class TravelProfile {
     this.dTag = 'travel-profile',
     this.content = '',
     required this.createdAt,
+    this.name,
     this.gender,
     this.birthYear,
+    this.birthMonth,
+    this.birthDay,
     this.originCountry,
     this.originCity,
     this.homeCountry,
     this.homeCity,
+    this.currentCountry,
+    this.currentCity,
+    this.geohashes = const [],
     this.occupation,
     this.education,
     this.languages = const [],
-    this.modes = const [],
     this.interests = const [],
     this.externalIdentities = const [],
     this.images = const [],
@@ -168,52 +180,69 @@ class TravelProfile {
   /// Addressable coordinate "30602:`pubkey`:`dTag`"
   String get addressCoordinate => '${NostrConstants.travelProfileKind}:$authorPubkey:$dTag';
 
-  /// Calculates dynamic age based on birth year without storing a stale integer.
-  int? get calculatedAge {
-    if (birthYear == null) return null;
-    final currentYear = DateTime.now().year;
-    return currentYear - birthYear!;
+  /// Best traveler display name fallback
+  String get bestTravelerName {
+    if (name != null && name!.trim().isNotEmpty) {
+      return name!.trim();
+    }
+    return authorPubkey.length >= 8 ? authorPubkey.substring(0, 8) : authorPubkey;
   }
 
-  /// Whether the user has specified hosting as an active mode.
-  bool get isOpenToHosting => modes.contains('host');
+  /// Calculates dynamic age based on birth year (and optional birthMonth / birthDay).
+  int? get calculatedAge {
+    if (birthYear == null) return null;
+    final now = DateTime.now();
+    int age = now.year - birthYear!;
 
-  /// Whether the user has specified traveling / guest as an active mode.
-  bool get isOpenToTraveling => modes.contains('guest');
-
-  /// Whether the user is open for coffee, city tours, or local meetups.
-  bool get isOpenToMeetup => modes.contains('meetup');
-
-  /// Whether the user is open to ridesharing / carpooling.
-  bool get isOpenToRideshare => modes.contains('rideshare');
+    if (birthMonth != null) {
+      final day = birthDay ?? 1;
+      if (now.month < birthMonth! || (now.month == birthMonth! && now.day < day)) {
+        age -= 1;
+      }
+    }
+    return age;
+  }
 
   /// Whether the profile contains any meaningful data.
   bool get isNotEmpty =>
       content.trim().isNotEmpty ||
+      (name != null && name!.trim().isNotEmpty) ||
       languages.isNotEmpty ||
-      modes.isNotEmpty ||
       interests.isNotEmpty ||
       externalIdentities.isNotEmpty ||
       gender != null ||
       birthYear != null ||
       originCountry != null ||
       homeCountry != null ||
+      currentCountry != null ||
+      currentCity != null ||
       occupation != null;
 
   /// Formatted origin location (e.g. "Munich, Germany").
   String? get formattedOrigin {
-    if (originCity != null && originCountry != null) {
-      return '$originCity, $originCountry';
+    final countryName = CountryConstants.getCountryName(originCountry);
+    if (originCity != null && originCity!.isNotEmpty && countryName.isNotEmpty) {
+      return '$originCity, $countryName';
     }
-    return originCity ?? originCountry;
+    return originCity ?? (countryName.isNotEmpty ? countryName : null);
   }
 
   /// Formatted home base location (e.g. "Lyon, France").
   String? get formattedHome {
-    if (homeCity != null && homeCountry != null) {
-      return '$homeCity, $homeCountry';
+    final countryName = CountryConstants.getCountryName(homeCountry);
+    if (homeCity != null && homeCity!.isNotEmpty && countryName.isNotEmpty) {
+      return '$homeCity, $countryName';
     }
-    return homeCity ?? homeCountry;
+    return homeCity ?? (countryName.isNotEmpty ? countryName : null);
+  }
+
+  /// Formatted current location (e.g. "Oaxaca, Mexico").
+  String? get formattedCurrent {
+    final countryName = CountryConstants.getCountryName(currentCountry);
+    if (currentCity != null && currentCity!.isNotEmpty && countryName.isNotEmpty) {
+      return '$currentCity, $countryName';
+    }
+    return currentCity ?? (countryName.isNotEmpty ? countryName : null);
   }
 
   /// Parses a [Nip01Event] of kind 30602 into a [TravelProfile].
@@ -223,17 +252,22 @@ class TravelProfile {
     }
 
     String dTag = 'travel-profile';
+    String? name;
     String? gender;
     int? birthYear;
+    int? birthMonth;
+    int? birthDay;
     String? originCountry;
     String? originCity;
     String? homeCountry;
     String? homeCity;
+    String? currentCountry;
+    String? currentCity;
     String? occupation;
     String? education;
 
+    final geohashes = <String>[];
     final languages = <LanguageProficiency>[];
-    final modes = <String>[];
     final interests = <String>[];
     final externalIdentities = <ExternalIdentity>[];
     final images = <String>[];
@@ -244,31 +278,44 @@ class TravelProfile {
 
       if (key == NostrConstants.tagD && tag.length > 1) {
         dTag = tag[1];
+      } else if (key == 'name' && tag.length > 1) {
+        name = tag[1].trim();
       } else if (key == 'gender' && tag.length > 1) {
-        gender = tag[1];
+        gender = tag[1].trim();
       } else if (key == 'birth_year' && tag.length > 1) {
-        birthYear = int.tryParse(tag[1]);
+        birthYear = int.tryParse(tag[1].trim());
+      } else if (key == 'birth_month' && tag.length > 1) {
+        birthMonth = int.tryParse(tag[1].trim());
+      } else if (key == 'birth_day' && tag.length > 1) {
+        birthDay = int.tryParse(tag[1].trim());
       } else if (key == 'origin_country' && tag.length > 1) {
-        originCountry = tag[1];
+        originCountry = tag[1].trim().toUpperCase();
       } else if (key == 'origin_city' && tag.length > 1) {
-        originCity = tag[1];
+        originCity = tag[1].trim();
       } else if (key == 'home_country' && tag.length > 1) {
-        homeCountry = tag[1];
+        homeCountry = tag[1].trim().toUpperCase();
       } else if (key == 'home_city' && tag.length > 1) {
-        homeCity = tag[1];
+        homeCity = tag[1].trim();
+      } else if (key == 'current_country' && tag.length > 1) {
+        currentCountry = tag[1].trim().toUpperCase();
+      } else if (key == 'current_city' && tag.length > 1) {
+        currentCity = tag[1].trim();
+      } else if (key == 'g' && tag.length > 1) {
+        final g = tag[1].trim();
+        if (g.isNotEmpty && !geohashes.contains(g)) {
+          geohashes.add(g);
+        }
       } else if (key == 'occupation' && tag.length > 1) {
-        occupation = tag[1];
+        occupation = tag[1].trim();
       } else if (key == 'education' && tag.length > 1) {
-        education = tag[1];
+        education = tag[1].trim();
       } else if (key == 'language' && tag.length > 1) {
         languages.add(LanguageProficiency(
-          code: tag[1],
-          level: tag.length > 2 ? tag[2] : null,
+          code: tag[1].trim().toLowerCase(),
+          level: tag.length > 2 ? tag[2].trim().toLowerCase() : null,
         ));
-      } else if (key == 'mode' && tag.length > 1) {
-        modes.add(tag[1].toLowerCase());
       } else if (key == NostrConstants.tagT && tag.length > 1) {
-        interests.add(tag[1]);
+        interests.add(tag[1].trim());
       } else if (key == 'image' && tag.length > 1 && tag[1].trim().isNotEmpty) {
         images.add(tag[1].trim());
       } else if (key == 'network' && tag.length > 2) {
@@ -283,7 +330,7 @@ class TravelProfile {
           externalIdentities.add(ExternalIdentity(
             platform: parts[0],
             username: parts.sublist(1).join(':'),
-            proof: tag.length > 2 ? tag[2] : null,
+            proof: tag.length > 2 ? tag[2].trim() : null,
           ));
         }
       }
@@ -297,16 +344,21 @@ class TravelProfile {
       dTag: dTag,
       content: event.content,
       createdAt: createdAt,
+      name: name,
       gender: gender,
       birthYear: birthYear,
+      birthMonth: birthMonth,
+      birthDay: birthDay,
       originCountry: originCountry,
       originCity: originCity,
       homeCountry: homeCountry,
       homeCity: homeCity,
+      currentCountry: currentCountry,
+      currentCity: currentCity,
+      geohashes: geohashes,
       occupation: occupation,
       education: education,
       languages: languages,
-      modes: modes,
       interests: interests,
       externalIdentities: externalIdentities,
       images: images,
@@ -321,25 +373,51 @@ class TravelProfile {
     // 1. Parameterized addressable d-tag
     tags.add([NostrConstants.tagD, dTag]);
 
-    // 2. Demographics & Origin/Home
+    // 2. Traveler Identity & Demographics
+    if (name != null && name!.trim().isNotEmpty) {
+      tags.add(['name', name!.trim()]);
+    }
     if (gender != null && gender!.trim().isNotEmpty) {
       tags.add(['gender', gender!.trim()]);
     }
     if (birthYear != null) {
       tags.add(['birth_year', birthYear.toString()]);
     }
+    if (birthMonth != null) {
+      tags.add(['birth_month', birthMonth.toString()]);
+    }
+    if (birthDay != null) {
+      tags.add(['birth_day', birthDay.toString()]);
+    }
+
+    // 3. Geographical Locations (Origins, Home, Current)
     if (originCountry != null && originCountry!.trim().isNotEmpty) {
-      tags.add(['origin_country', originCountry!.trim()]);
+      tags.add(['origin_country', originCountry!.trim().toUpperCase()]);
     }
     if (originCity != null && originCity!.trim().isNotEmpty) {
       tags.add(['origin_city', originCity!.trim()]);
     }
     if (homeCountry != null && homeCountry!.trim().isNotEmpty) {
-      tags.add(['home_country', homeCountry!.trim()]);
+      tags.add(['home_country', homeCountry!.trim().toUpperCase()]);
     }
     if (homeCity != null && homeCity!.trim().isNotEmpty) {
       tags.add(['home_city', homeCity!.trim()]);
     }
+    if (currentCountry != null && currentCountry!.trim().isNotEmpty) {
+      tags.add(['current_country', currentCountry!.trim().toUpperCase()]);
+    }
+    if (currentCity != null && currentCity!.trim().isNotEmpty) {
+      tags.add(['current_city', currentCity!.trim()]);
+    }
+
+    // 4. Cascading geohash tags (Active Location)
+    for (final g in geohashes) {
+      if (g.trim().isNotEmpty) {
+        tags.add(['g', g.trim()]);
+      }
+    }
+
+    // 5. Professional & Education background
     if (occupation != null && occupation!.trim().isNotEmpty) {
       tags.add(['occupation', occupation!.trim()]);
     }
@@ -347,7 +425,7 @@ class TravelProfile {
       tags.add(['education', education!.trim()]);
     }
 
-    // 3. Languages spoken
+    // 6. Languages spoken
     for (final lang in languages) {
       if (lang.code.trim().isNotEmpty) {
         if (lang.level != null && lang.level!.trim().isNotEmpty) {
@@ -358,28 +436,21 @@ class TravelProfile {
       }
     }
 
-    // 4. Interaction Modes
-    for (final mode in modes) {
-      if (mode.trim().isNotEmpty) {
-        tags.add(['mode', mode.trim().toLowerCase()]);
-      }
-    }
-
-    // 5. Interests / Topics
+    // 7. Interests / Topics
     for (final interest in interests) {
       if (interest.trim().isNotEmpty) {
         tags.add([NostrConstants.tagT, interest.trim()]);
       }
     }
 
-    // 6. Travel & Lifestyle Photos
+    // 8. Travel & Lifestyle Photos
     for (final image in images) {
       if (image.trim().isNotEmpty) {
         tags.add(['image', image.trim()]);
       }
     }
 
-    // 7. Linked Hospitality & Travel Community Networks
+    // 9. Linked Hospitality & Travel Community Networks
     for (final id in externalIdentities) {
       if (id.platform.trim().isNotEmpty && id.username.trim().isNotEmpty) {
         if (id.proof != null && id.proof!.trim().isNotEmpty) {
@@ -406,16 +477,21 @@ class TravelProfile {
     String? dTag,
     String? content,
     DateTime? createdAt,
+    String? name,
     String? gender,
     int? birthYear,
+    int? birthMonth,
+    int? birthDay,
     String? originCountry,
     String? originCity,
     String? homeCountry,
     String? homeCity,
+    String? currentCountry,
+    String? currentCity,
+    List<String>? geohashes,
     String? occupation,
     String? education,
     List<LanguageProficiency>? languages,
-    List<String>? modes,
     List<String>? interests,
     List<ExternalIdentity>? externalIdentities,
     List<String>? images,
@@ -427,16 +503,21 @@ class TravelProfile {
       dTag: dTag ?? this.dTag,
       content: content ?? this.content,
       createdAt: createdAt ?? this.createdAt,
+      name: name ?? this.name,
       gender: gender ?? this.gender,
       birthYear: birthYear ?? this.birthYear,
+      birthMonth: birthMonth ?? this.birthMonth,
+      birthDay: birthDay ?? this.birthDay,
       originCountry: originCountry ?? this.originCountry,
       originCity: originCity ?? this.originCity,
       homeCountry: homeCountry ?? this.homeCountry,
       homeCity: homeCity ?? this.homeCity,
+      currentCountry: currentCountry ?? this.currentCountry,
+      currentCity: currentCity ?? this.currentCity,
+      geohashes: geohashes ?? this.geohashes,
       occupation: occupation ?? this.occupation,
       education: education ?? this.education,
       languages: languages ?? this.languages,
-      modes: modes ?? this.modes,
       interests: interests ?? this.interests,
       externalIdentities: externalIdentities ?? this.externalIdentities,
       images: images ?? this.images,

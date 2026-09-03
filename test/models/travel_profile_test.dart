@@ -13,22 +13,28 @@ void main() {
         kind: NostrConstants.travelProfileKind,
         tags: [
           ['d', 'travel-profile'],
+          ['name', 'Alice Nomad'],
           ['gender', 'female'],
           ['birth_year', '1995'],
+          ['birth_month', '4'],
+          ['birth_day', '12'],
           ['origin_country', 'DE'],
           ['origin_city', 'Munich'],
           ['home_country', 'FR'],
           ['home_city', 'Lyon'],
+          ['current_country', 'MX'],
+          ['current_city', 'Oaxaca'],
+          ['g', '9g3w8'],
+          ['g', '9g3w'],
+          ['g', '9g3'],
           ['occupation', 'Photographer'],
           ['education', 'Master in Visual Arts'],
           ['language', 'de', 'native'],
           ['language', 'en', 'fluent'],
           ['language', 'fr', 'intermediate'],
-          ['mode', 'host'],
-          ['mode', 'guest'],
-          ['mode', 'meetup'],
           ['t', 'cycling'],
           ['t', 'hiking'],
+          ['t', 'meetup'],
           ['image', 'https://image.nostr.build/trip1.jpg'],
           ['image', 'https://image.nostr.build/trip2.jpg'],
           ['network', 'triphopping', 'alice_nomad'],
@@ -41,24 +47,27 @@ void main() {
       final profile = TravelProfile.fromNip01Event(nip01Event);
       expect(profile, isNotNull);
       expect(profile!.dTag, 'travel-profile');
+      expect(profile.name, 'Alice Nomad');
+      expect(profile.bestTravelerName, 'Alice Nomad');
       expect(profile.gender, 'female');
       expect(profile.birthYear, 1995);
+      expect(profile.birthMonth, 4);
+      expect(profile.birthDay, 12);
       expect(profile.calculatedAge, isNotNull);
       expect(profile.originCountry, 'DE');
       expect(profile.originCity, 'Munich');
-      expect(profile.formattedOrigin, 'Munich, DE');
-      expect(profile.formattedHome, 'Lyon, FR');
+      expect(profile.formattedOrigin, 'Munich, Germany');
+      expect(profile.formattedHome, 'Lyon, France');
+      expect(profile.formattedCurrent, 'Oaxaca, Mexico');
+      expect(profile.currentCountry, 'MX');
+      expect(profile.currentCity, 'Oaxaca');
+      expect(profile.geohashes, ['9g3w8', '9g3w', '9g3']);
       expect(profile.occupation, 'Photographer');
       expect(profile.education, 'Master in Visual Arts');
       expect(profile.languages.length, 3);
       expect(profile.languages[0].code, 'de');
       expect(profile.languages[0].level, 'native');
-      expect(profile.modes, ['host', 'guest', 'meetup']);
-      expect(profile.isOpenToHosting, true);
-      expect(profile.isOpenToTraveling, true);
-      expect(profile.isOpenToMeetup, true);
-      expect(profile.isOpenToRideshare, false);
-      expect(profile.interests, ['cycling', 'hiking']);
+      expect(profile.interests, ['cycling', 'hiking', 'meetup']);
       expect(profile.images, ['https://image.nostr.build/trip1.jpg', 'https://image.nostr.build/trip2.jpg']);
       expect(profile.externalIdentities.length, 2);
       expect(profile.externalIdentities[0].platform, 'triphopping');
@@ -73,19 +82,24 @@ void main() {
         dTag: 'travel-profile',
         content: 'Nomadic developer traveling Latin America.',
         createdAt: DateTime.now(),
+        name: 'DartDev',
         gender: 'non-binary',
         birthYear: 1998,
-        originCountry: 'USA',
+        birthMonth: 8,
+        birthDay: 20,
+        originCountry: 'US',
         originCity: 'Seattle',
-        homeCountry: 'Mexico',
+        homeCountry: 'MX',
         homeCity: 'Oaxaca',
+        currentCountry: 'GT',
+        currentCity: 'Antigua',
+        geohashes: const ['9fxsn', '9fxs', '9fx'],
         occupation: 'Dart Engineer',
         languages: const [
           LanguageProficiency(code: 'en', level: 'native'),
           LanguageProficiency(code: 'es', level: 'conversational'),
         ],
-        modes: const ['host', 'rideshare'],
-        interests: const ['nostr', 'open_source'],
+        interests: const ['nostr', 'open_source', 'meetup'],
         images: const ['https://image.nostr.build/oaxaca_sunset.jpg'],
         externalIdentities: const [
           ExternalIdentity(platform: 'triphopping', username: 'dartdev'),
@@ -99,17 +113,35 @@ void main() {
       final dTag = event.tags.firstWhere((t) => t.isNotEmpty && t[0] == 'd');
       expect(dTag[1], 'travel-profile');
 
+      final nameTag = event.tags.firstWhere((t) => t.isNotEmpty && t[0] == 'name');
+      expect(nameTag[1], 'DartDev');
+
       final genderTag = event.tags.firstWhere((t) => t.isNotEmpty && t[0] == 'gender');
       expect(genderTag[1], 'non-binary');
-
-      final imageTag = event.tags.firstWhere((t) => t.isNotEmpty && t[0] == 'image');
-      expect(imageTag[1], 'https://image.nostr.build/oaxaca_sunset.jpg');
 
       final birthYearTag = event.tags.firstWhere((t) => t.isNotEmpty && t[0] == 'birth_year');
       expect(birthYearTag[1], '1998');
 
-      final modeTags = event.tags.where((t) => t.isNotEmpty && t[0] == 'mode').map((t) => t[1]).toList();
-      expect(modeTags, ['host', 'rideshare']);
+      final birthMonthTag = event.tags.firstWhere((t) => t.isNotEmpty && t[0] == 'birth_month');
+      expect(birthMonthTag[1], '8');
+
+      final birthDayTag = event.tags.firstWhere((t) => t.isNotEmpty && t[0] == 'birth_day');
+      expect(birthDayTag[1], '20');
+
+      final originCountryTag = event.tags.firstWhere((t) => t.isNotEmpty && t[0] == 'origin_country');
+      expect(originCountryTag[1], 'US');
+
+      final currentCountryTag = event.tags.firstWhere((t) => t.isNotEmpty && t[0] == 'current_country');
+      expect(currentCountryTag[1], 'GT');
+
+      final currentCityTag = event.tags.firstWhere((t) => t.isNotEmpty && t[0] == 'current_city');
+      expect(currentCityTag[1], 'Antigua');
+
+      final gTags = event.tags.where((t) => t.isNotEmpty && t[0] == 'g').map((t) => t[1]).toList();
+      expect(gTags, ['9fxsn', '9fxs', '9fx']);
+
+      final imageTag = event.tags.firstWhere((t) => t.isNotEmpty && t[0] == 'image');
+      expect(imageTag[1], 'https://image.nostr.build/oaxaca_sunset.jpg');
 
       final networkTags = event.tags.where((t) => t.isNotEmpty && t[0] == 'network').toList();
       expect(networkTags.length, 1);

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../../core/constants/country_constants.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../models/travel_profile.dart';
 
@@ -17,17 +18,22 @@ class TravelProfileEditorScreen extends ConsumerStatefulWidget {
 class _TravelProfileEditorScreenState extends ConsumerState<TravelProfileEditorScreen> {
   final _formKey = GlobalKey<FormState>();
 
+  late TextEditingController _nameController;
   late TextEditingController _contentController;
   late TextEditingController _originCityController;
-  late TextEditingController _originCountryController;
+  String? _originCountry;
   late TextEditingController _homeCityController;
-  late TextEditingController _homeCountryController;
+  String? _homeCountry;
+  late TextEditingController _currentCityController;
+  String? _currentCountry;
   late TextEditingController _occupationController;
   late TextEditingController _educationController;
   late TextEditingController _birthYearController;
 
   String? _gender;
-  final Set<String> _selectedModes = {};
+  int? _birthMonth;
+  int? _birthDay;
+
   final List<LanguageProficiency> _languages = [];
   final List<String> _interests = [];
   final List<ExternalIdentity> _externalIdentities = [];
@@ -39,9 +45,9 @@ class _TravelProfileEditorScreenState extends ConsumerState<TravelProfileEditorS
   bool _isUploadingImage = false;
 
   final List<String> _availableInterests = const [
-    'hiking', 'cycling', 'cooking', 'music', 'art', 'reading',
+    'meetup', 'hiking', 'cycling', 'cooking', 'music', 'art', 'reading',
     'photography', 'nostr', 'open_source', 'van_life', 'camping',
-    'surfing', 'yoga', 'coffee', 'philosophy', 'board_games',
+    'surfing', 'yoga', 'coffee', 'philosophy', 'board_games', 'rideshare',
   ];
 
   @override
@@ -49,20 +55,24 @@ class _TravelProfileEditorScreenState extends ConsumerState<TravelProfileEditorS
     super.initState();
     final init = widget.initialProfile;
 
+    _nameController = TextEditingController(text: init?.name ?? '');
     _contentController = TextEditingController(text: init?.content ?? '');
     _originCityController = TextEditingController(text: init?.originCity ?? '');
-    _originCountryController = TextEditingController(text: init?.originCountry ?? '');
+    _originCountry = init?.originCountry;
     _homeCityController = TextEditingController(text: init?.homeCity ?? '');
-    _homeCountryController = TextEditingController(text: init?.homeCountry ?? '');
+    _homeCountry = init?.homeCountry;
+    _currentCityController = TextEditingController(text: init?.currentCity ?? '');
+    _currentCountry = init?.currentCountry;
     _occupationController = TextEditingController(text: init?.occupation ?? '');
     _educationController = TextEditingController(text: init?.education ?? '');
     _birthYearController = TextEditingController(
       text: init?.birthYear != null ? init!.birthYear.toString() : '',
     );
-
+    _birthMonth = init?.birthMonth;
+    _birthDay = init?.birthDay;
     _gender = init?.gender;
+
     if (init != null) {
-      _selectedModes.addAll(init.modes);
       _languages.addAll(init.languages);
       _interests.addAll(init.interests);
       _externalIdentities.addAll(init.externalIdentities);
@@ -72,11 +82,11 @@ class _TravelProfileEditorScreenState extends ConsumerState<TravelProfileEditorS
 
   @override
   void dispose() {
+    _nameController.dispose();
     _contentController.dispose();
     _originCityController.dispose();
-    _originCountryController.dispose();
     _homeCityController.dispose();
-    _homeCountryController.dispose();
+    _currentCityController.dispose();
     _occupationController.dispose();
     _educationController.dispose();
     _birthYearController.dispose();
@@ -327,6 +337,105 @@ class _TravelProfileEditorScreenState extends ConsumerState<TravelProfileEditorS
     );
   }
 
+  Widget _buildCountryDropdown({
+    required String label,
+    required String? value,
+    required ValueChanged<String?> onChanged,
+  }) {
+    return DropdownButtonFormField<String?>(
+      initialValue: value != null && CountryConstants.countryMap.containsKey(value.toUpperCase())
+          ? value.toUpperCase()
+          : null,
+      isExpanded: true,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: 'Select country',
+        prefixIcon: const Icon(Icons.public_rounded, size: 20),
+      ),
+      items: [
+        const DropdownMenuItem<String?>(
+          value: null,
+          child: Text('— None / Unspecified'),
+        ),
+        ...CountryConstants.sortedCountryEntries.map(
+          (e) => DropdownMenuItem<String?>(
+            value: e.key,
+            child: Text(
+              '${e.value} (${e.key})',
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+      ],
+      onChanged: onChanged,
+    );
+  }
+
+  Future<void> _saveProfile() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    final authState = ref.read(authStateProvider).valueOrNull;
+    if (authState?.pubkey == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('You must be signed in to publish a profile.')),
+      );
+      return;
+    }
+
+    final pubkey = authState!.pubkey!;
+    setState(() => _isSaving = true);
+
+    final birthYearInt = int.tryParse(_birthYearController.text.trim());
+
+    final profile = TravelProfile(
+      eventId: widget.initialProfile?.eventId ?? '',
+      authorPubkey: pubkey,
+      name: _nameController.text.trim().isNotEmpty ? _nameController.text.trim() : null,
+      content: _contentController.text.trim(),
+      createdAt: DateTime.now(),
+      gender: _gender,
+      birthYear: birthYearInt,
+      birthMonth: _birthMonth,
+      birthDay: _birthDay,
+      originCountry: _originCountry,
+      originCity: _originCityController.text.trim().isNotEmpty ? _originCityController.text.trim() : null,
+      homeCountry: _homeCountry,
+      homeCity: _homeCityController.text.trim().isNotEmpty ? _homeCityController.text.trim() : null,
+      currentCountry: _currentCountry,
+      currentCity: _currentCityController.text.trim().isNotEmpty ? _currentCityController.text.trim() : null,
+      occupation: _occupationController.text.trim().isNotEmpty ? _occupationController.text.trim() : null,
+      education: _educationController.text.trim().isNotEmpty ? _educationController.text.trim() : null,
+      languages: _languages,
+      interests: _interests,
+      externalIdentities: _externalIdentities,
+      images: _images,
+      geohashes: widget.initialProfile?.geohashes ?? const [],
+    );
+
+    try {
+      final repository = ref.read(profileRepositoryProvider);
+      await repository.saveTravelProfile(profile);
+      ref.invalidate(userTravelProfileProvider(pubkey));
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Travel profile published to Nostr relays successfully!')),
+        );
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error saving travel profile: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -357,7 +466,7 @@ class _TravelProfileEditorScreenState extends ConsumerState<TravelProfileEditorS
         child: ListView(
           padding: const EdgeInsets.all(20.0),
           children: [
-            // --- SECTION 1: Active Interaction Modes ---
+            // --- SECTION 1: Traveler Name & Identity ---
             Card(
               margin: EdgeInsets.zero,
               child: Padding(
@@ -367,31 +476,28 @@ class _TravelProfileEditorScreenState extends ConsumerState<TravelProfileEditorS
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.hub_outlined, color: theme.colorScheme.primary),
+                        Icon(Icons.badge_outlined, color: theme.colorScheme.primary),
                         const SizedBox(width: 8),
                         Text(
-                          'Active Interaction Modes',
+                          'Travel Identity & Nickname',
                           style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                         ),
                       ],
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Select the real-world peer-to-peer activities you are open to participating in.',
+                      'Your preferred name, nickname, or trail name for travel & hospitality (e.g. NomadAlice or Ken).',
                       style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                     ),
                     const SizedBox(height: 14),
 
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _buildModeChip('host', '🏠 Hosting Travelers'),
-                        _buildModeChip('guest', '🎒 Traveling / Surfing'),
-                        _buildModeChip('meetup', '☕ Local Hangouts & Coffee'),
-                        _buildModeChip('rideshare', '🚗 Rideshare / Carpool'),
-                        _buildModeChip('language_exchange', '🗣️ Language Exchange'),
-                      ],
+                    TextFormField(
+                      controller: _nameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Traveler Name / Nickname',
+                        hintText: 'e.g. NomadAlice or Ken',
+                        prefixIcon: Icon(Icons.person_outline_rounded),
+                      ),
                     ),
                   ],
                 ),
@@ -399,7 +505,7 @@ class _TravelProfileEditorScreenState extends ConsumerState<TravelProfileEditorS
             ),
             const SizedBox(height: 20),
 
-            // --- SECTION: Travel & Lifestyle Photos (nostr.build) ---
+            // --- SECTION 2: Travel & Lifestyle Photos (nostr.build) ---
             Card(
               margin: EdgeInsets.zero,
               child: Padding(
@@ -424,7 +530,6 @@ class _TravelProfileEditorScreenState extends ConsumerState<TravelProfileEditorS
                     ),
                     const SizedBox(height: 16),
 
-                    // Active Upload Spinner
                     if (_isUploadingImage)
                       Container(
                         margin: const EdgeInsets.only(bottom: 16),
@@ -452,7 +557,6 @@ class _TravelProfileEditorScreenState extends ConsumerState<TravelProfileEditorS
                         ),
                       ),
 
-                    // Gallery Display
                     if (_images.isNotEmpty)
                       Wrap(
                         spacing: 12,
@@ -495,7 +599,6 @@ class _TravelProfileEditorScreenState extends ConsumerState<TravelProfileEditorS
 
                     if (_images.isNotEmpty) const SizedBox(height: 16),
 
-                    // Action buttons
                     Row(
                       children: [
                         FilledButton.tonalIcon(
@@ -517,7 +620,7 @@ class _TravelProfileEditorScreenState extends ConsumerState<TravelProfileEditorS
             ),
             const SizedBox(height: 20),
 
-            // --- SECTION 2: Languages Spoken ---
+            // --- SECTION 3: Languages Spoken ---
             Card(
               margin: EdgeInsets.zero,
               child: Padding(
@@ -571,7 +674,7 @@ class _TravelProfileEditorScreenState extends ConsumerState<TravelProfileEditorS
             ),
             const SizedBox(height: 20),
 
-            // --- SECTION 3: Traveler Story & Philosophy ---
+            // --- SECTION 4: Traveler Story & Philosophy ---
             Card(
               margin: EdgeInsets.zero,
               child: Padding(
@@ -610,7 +713,7 @@ class _TravelProfileEditorScreenState extends ConsumerState<TravelProfileEditorS
             ),
             const SizedBox(height: 20),
 
-            // --- SECTION 4: Origins & Demographics (Optional) ---
+            // --- SECTION 5: Geography & Locations (Origin, Home, Current) ---
             Card(
               margin: EdgeInsets.zero,
               child: Padding(
@@ -620,62 +723,118 @@ class _TravelProfileEditorScreenState extends ConsumerState<TravelProfileEditorS
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.badge_outlined, color: theme.colorScheme.primary),
+                        Icon(Icons.location_city_rounded, color: theme.colorScheme.primary),
                         const SizedBox(width: 8),
                         Text(
-                          'Origins & Personal Background (Optional)',
+                          'Locations & Roots (Optional)',
                           style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                         ),
                       ],
                     ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Distinguish where you grew up, where you currently live, and where you are traveling right now.',
+                      style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                    ),
                     const SizedBox(height: 16),
 
-                    // Origin vs Home
+                    // Origin Hometown
+                    Text('1. Hometown / Origin Roots', style: theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
                     Row(
                       children: [
                         Expanded(
                           child: TextFormField(
                             controller: _originCityController,
                             decoration: const InputDecoration(
-                              labelText: 'Grew up / Origin City',
+                              labelText: 'Origin City',
                               hintText: 'e.g. Munich',
                             ),
                           ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
-                          child: TextFormField(
-                            controller: _originCountryController,
-                            decoration: const InputDecoration(
-                              labelText: 'Origin Country',
-                              hintText: 'e.g. Germany',
-                            ),
+                          child: _buildCountryDropdown(
+                            label: 'Origin Country',
+                            value: _originCountry,
+                            onChanged: (val) => setState(() => _originCountry = val),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 16),
 
+                    // Home Base
+                    Text('2. Current Home Base (Residence)', style: theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
                     Row(
                       children: [
                         Expanded(
                           child: TextFormField(
                             controller: _homeCityController,
                             decoration: const InputDecoration(
-                              labelText: 'Current Home City',
+                              labelText: 'Home City',
                               hintText: 'e.g. Lyon',
                             ),
                           ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
+                          child: _buildCountryDropdown(
+                            label: 'Home Country',
+                            value: _homeCountry,
+                            onChanged: (val) => setState(() => _homeCountry = val),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Active Travel Location (Nomad)
+                    Text('3. Currently Traveling In (On the Road)', style: theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
                           child: TextFormField(
-                            controller: _homeCountryController,
+                            controller: _currentCityController,
                             decoration: const InputDecoration(
-                              labelText: 'Current Country',
-                              hintText: 'e.g. France',
+                              labelText: 'Current City',
+                              hintText: 'e.g. Oaxaca',
                             ),
                           ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildCountryDropdown(
+                            label: 'Current Country',
+                            value: _currentCountry,
+                            onChanged: (val) => setState(() => _currentCountry = val),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // --- SECTION 6: Demographics & Birthday ---
+            Card(
+              margin: EdgeInsets.zero,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.cake_outlined, color: theme.colorScheme.primary),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Demographics & Birthday (Optional)',
+                          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                         ),
                       ],
                     ),
@@ -715,7 +874,51 @@ class _TravelProfileEditorScreenState extends ConsumerState<TravelProfileEditorS
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 14),
+
+                    // Birth Month & Day
+                    Row(
+                      children: [
+                        Expanded(
+                          child: DropdownButtonFormField<int?>(
+                            initialValue: _birthMonth,
+                            decoration: const InputDecoration(
+                              labelText: 'Birth Month',
+                              hintText: 'Month',
+                            ),
+                            items: [
+                              const DropdownMenuItem<int?>(value: null, child: Text('— Unspecified')),
+                              for (int m = 1; m <= 12; m++)
+                                DropdownMenuItem<int?>(
+                                  value: m,
+                                  child: Text(_monthName(m)),
+                                ),
+                            ],
+                            onChanged: (val) => setState(() => _birthMonth = val),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: DropdownButtonFormField<int?>(
+                            initialValue: _birthDay,
+                            decoration: const InputDecoration(
+                              labelText: 'Birth Day',
+                              hintText: 'Day',
+                            ),
+                            items: [
+                              const DropdownMenuItem<int?>(value: null, child: Text('— Unspecified')),
+                              for (int d = 1; d <= 31; d++)
+                                DropdownMenuItem<int?>(
+                                  value: d,
+                                  child: Text(d.toString()),
+                                ),
+                            ],
+                            onChanged: (val) => setState(() => _birthDay = val),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
 
                     TextFormField(
                       controller: _occupationController,
@@ -724,13 +927,22 @@ class _TravelProfileEditorScreenState extends ConsumerState<TravelProfileEditorS
                         hintText: 'e.g. Software Engineer / Photographer',
                       ),
                     ),
+                    const SizedBox(height: 12),
+
+                    TextFormField(
+                      controller: _educationController,
+                      decoration: const InputDecoration(
+                        labelText: 'Education',
+                        hintText: 'e.g. B.Sc. Computer Science',
+                      ),
+                    ),
                   ],
                 ),
               ),
             ),
             const SizedBox(height: 20),
 
-            // --- SECTION 5: Interests & Topics ---
+            // --- SECTION 7: Interests & Topics ---
             Card(
               margin: EdgeInsets.zero,
               child: Padding(
@@ -750,12 +962,11 @@ class _TravelProfileEditorScreenState extends ConsumerState<TravelProfileEditorS
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Select from popular topics or add your own custom passions.',
+                      'Select from popular topics or add your own custom passions (e.g. #meetup, #hiking, #nostr).',
                       style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                     ),
                     const SizedBox(height: 12),
 
-                    // Custom Interests currently selected that are not in predefined list
                     if (_interests.any((i) => !_availableInterests.contains(i))) ...[
                       Text(
                         'Custom Interests',
@@ -805,18 +1016,15 @@ class _TravelProfileEditorScreenState extends ConsumerState<TravelProfileEditorS
                         );
                       }).toList(),
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 12),
 
-                    // Custom interest text input field
                     Row(
                       children: [
                         Expanded(
                           child: TextField(
                             controller: _customInterestController,
                             decoration: const InputDecoration(
-                              labelText: 'Add Custom Interest / Topic',
-                              hintText: 'e.g. foraging, salsa_dancing, chess',
-                              prefixIcon: Icon(Icons.tag_rounded, size: 18),
+                              hintText: 'Add custom interest (e.g. salsa_dancing)',
                               isDense: true,
                             ),
                             onSubmitted: (_) => _addCustomInterest(),
@@ -826,7 +1034,6 @@ class _TravelProfileEditorScreenState extends ConsumerState<TravelProfileEditorS
                         IconButton.filledTonal(
                           onPressed: _addCustomInterest,
                           icon: const Icon(Icons.add_rounded),
-                          tooltip: 'Add interest',
                         ),
                       ],
                     ),
@@ -836,7 +1043,7 @@ class _TravelProfileEditorScreenState extends ConsumerState<TravelProfileEditorS
             ),
             const SizedBox(height: 20),
 
-            // --- SECTION 6: Linked Networks & Communities (network tag) ---
+            // --- SECTION 8: Linked Hospitality Networks ---
             Card(
               margin: EdgeInsets.zero,
               child: Padding(
@@ -849,27 +1056,27 @@ class _TravelProfileEditorScreenState extends ConsumerState<TravelProfileEditorS
                         Icon(Icons.link_rounded, color: theme.colorScheme.primary),
                         const SizedBox(width: 8),
                         Text(
-                          'Linked Networks & Reputation',
+                          'Linked Hospitality & Social Profiles',
                           style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                         ),
                         const Spacer(),
                         TextButton.icon(
                           onPressed: _addExternalIdentityDialog,
-                          icon: const Icon(Icons.add_link_rounded, size: 18),
-                          label: const Text('Link Account'),
+                          icon: const Icon(Icons.add_rounded, size: 18),
+                          label: const Text('Link'),
                         ),
                       ],
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Link your profiles on Trip Hopping, Couchers, Trustroots, Couchsurfing, WarmShowers, BeWelcome, or GitHub to import cross-network trust.',
+                      'Connect your Trustroots, Couchers, Couchsurfing, WarmShowers, or GitHub handles to bring your external reputation to Nostr.',
                       style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                     ),
                     const SizedBox(height: 12),
 
                     if (_externalIdentities.isEmpty)
                       Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 6.0),
+                        padding: const EdgeInsets.symmetric(vertical: 8.0),
                         child: Text(
                           'No external accounts linked yet.',
                           style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.outline),
@@ -879,12 +1086,21 @@ class _TravelProfileEditorScreenState extends ConsumerState<TravelProfileEditorS
                       Column(
                         children: _externalIdentities.map((id) {
                           return ListTile(
-                            dense: true,
                             contentPadding: EdgeInsets.zero,
-                            leading: const Icon(Icons.verified_outlined, size: 20),
-                            title: Text('${id.platformName}: @${id.username}'),
+                            leading: CircleAvatar(
+                              backgroundColor: theme.colorScheme.primaryContainer,
+                              child: Text(
+                                id.platform[0].toUpperCase(),
+                                style: TextStyle(
+                                  color: theme.colorScheme.primary,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            title: Text(id.platformName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                            subtitle: Text('@${id.username}'),
                             trailing: IconButton(
-                              icon: const Icon(Icons.close_rounded, size: 18),
+                              icon: const Icon(Icons.delete_outline_rounded),
                               onPressed: () {
                                 setState(() => _externalIdentities.remove(id));
                               },
@@ -896,17 +1112,6 @@ class _TravelProfileEditorScreenState extends ConsumerState<TravelProfileEditorS
                 ),
               ),
             ),
-            const SizedBox(height: 32),
-
-            FilledButton.icon(
-              onPressed: _isSaving ? null : _saveProfile,
-              style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
-              icon: const Icon(Icons.cloud_upload_rounded),
-              label: Text(
-                isEditing ? 'Save & Broadcast Travel Profile' : 'Publish Travel Profile (Kind 30602)',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-              ),
-            ),
             const SizedBox(height: 40),
           ],
         ),
@@ -914,84 +1119,12 @@ class _TravelProfileEditorScreenState extends ConsumerState<TravelProfileEditorS
     );
   }
 
-  Widget _buildModeChip(String mode, String label) {
-    final isSelected = _selectedModes.contains(mode);
-    return FilterChip(
-      label: Text(label),
-      selected: isSelected,
-      onSelected: (selected) {
-        setState(() {
-          if (selected) {
-            _selectedModes.add(mode);
-          } else {
-            _selectedModes.remove(mode);
-          }
-        });
-      },
-    );
-  }
-
-  void _saveProfile() async {
-    final authState = ref.read(authStateProvider).valueOrNull;
-    if (authState == null || !authState.isAuthenticated || authState.pubkey == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please sign in with your Nostr keys to publish a profile')),
-      );
-      return;
-    }
-
-    setState(() => _isSaving = true);
-
-    try {
-      final repo = ref.read(profileRepositoryProvider);
-      final myPubkey = authState.pubkey!;
-      final existing = widget.initialProfile;
-
-      final birthYear = int.tryParse(_birthYearController.text.trim());
-
-      final updatedProfile = TravelProfile(
-        eventId: existing?.eventId ?? '',
-        authorPubkey: myPubkey,
-        dTag: existing?.dTag ?? 'travel-profile',
-        content: _contentController.text.trim(),
-        createdAt: DateTime.now(),
-        gender: _gender,
-        birthYear: birthYear,
-        originCountry: _originCountryController.text.trim().isNotEmpty ? _originCountryController.text.trim() : null,
-        originCity: _originCityController.text.trim().isNotEmpty ? _originCityController.text.trim() : null,
-        homeCountry: _homeCountryController.text.trim().isNotEmpty ? _homeCountryController.text.trim() : null,
-        homeCity: _homeCityController.text.trim().isNotEmpty ? _homeCityController.text.trim() : null,
-        occupation: _occupationController.text.trim().isNotEmpty ? _occupationController.text.trim() : null,
-        education: _educationController.text.trim().isNotEmpty ? _educationController.text.trim() : null,
-        languages: _languages,
-        modes: _selectedModes.toList(),
-        interests: _interests,
-        externalIdentities: _externalIdentities,
-        images: _images,
-      );
-
-      await repo.saveTravelProfile(updatedProfile);
-
-      // Invalidate provider so profile screen immediately updates
-      ref.invalidate(userTravelProfileProvider(myPubkey));
-      ref.invalidate(currentUserTravelProfileProvider);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Travel Profile updated on Nostr relays!')),
-        );
-        Navigator.of(context).pop(true);
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save profile: $e')),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isSaving = false);
-      }
-    }
+  String _monthName(int month) {
+    const months = [
+      'January (01)', 'February (02)', 'March (03)', 'April (04)',
+      'May (05)', 'June (06)', 'July (07)', 'August (08)',
+      'September (09)', 'October (10)', 'November (11)', 'December (12)',
+    ];
+    return months[month - 1];
   }
 }

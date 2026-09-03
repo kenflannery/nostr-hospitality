@@ -10,7 +10,7 @@ The app is the **reference implementation** establishing open Nostr protocol sta
 
 - **Sovereign Identity**: Sign in with an `nsec` or generate a new Nostr keypair. Your cryptographic identity (npub/nsec) is your passport across the decentralized web.
 - **Kind 0 User Profiles**: Standard Nostr profile metadata (name, display name, picture, banner, bio, NIP-05, website). Safe, non-destructive profile edits preserve unmanaged fields.
-- **Travel & Community Profiles (Kind 30602)**: Clobber-proof domain profile preserving languages spoken, interaction modes (host, guest, meetup, rideshare, language exchange), demographics, and NIP-39 legacy trust proofs.
+- **Travel & Community Profiles (Kind 30602)**: Clobber-proof domain profile preserving traveler nickname, languages spoken, home base & current mobility, granular birthday, demographics, and NIP-39 legacy trust proofs.
 - **NIP-99 Hospitality Classifieds (Offers & Requests)**: Hosts publish accommodations (couch, spare room, house swap, tent space) as `hospitality-offer`, and travelers broadcast date-bound stay requests (public trips) as `hospitality-request` under `kind: 30402`.
 - **Comprehensive Hosting & Travel Preferences**: Standardized tags for sleeping arrangements, max guests/party size, arrival/departure dates (`start`/`end`), last-minute requests, wheelchair accessibility, kids, pets, drinking, smoking, and parking with strict tri-state nullability.
 - **Geohash Privacy & Cascading Tags**: Adheres strictly to the 4-character geohash privacy policy (`g` tag truncated to 4 chars for ~20-40km bounding area) to protect host home and traveler privacy while enabling spatial indexing across relays.
@@ -27,7 +27,7 @@ The app is the **reference implementation** establishing open Nostr protocol sta
 | Kind | Protocol / Specification | Purpose | Formal Spec |
 |---|---|---|---|
 | `0` | NIP-01 User Metadata | Base profile identity, avatar, display name, bio, and NIP-05 verification | [NIP-01](https://github.com/nostr-protocol/nips/blob/master/01.md) |
-| `30602` | Travel & Community Profile (Draft NIP) | Parameterized profile: languages, demographics, interaction modes, and NIP-39 identity links | [`nips/travel-community-profile.md`](nips/travel-community-profile.md) |
+| `30602` | Travel & Community Profile (Draft NIP) | Parameterized profile: nickname, languages, locations (origin/home/current), and NIP-39 identity links | [`nips/travel-community-profile.md`](nips/travel-community-profile.md) |
 | `30402` | NIP-99: Hospitality Classified Listings | Addressable hospitality hosting offers, stay requests, dates (`start`/`end`), and preferences | [`nips/hospitality-listings.md`](nips/hospitality-listings.md) |
 | `7654` | Interaction References (Draft NIP) | Portable interpersonal references, reviews, and historical interaction statements | [`nips/interaction-references.md`](nips/interaction-references.md) |
 | `1059` / `13` / `14` | NIP-17 / NIP-59 Private Messaging | Gift-wrapped end-to-end encrypted direct messaging | [NIP-17](https://github.com/nostr-protocol/nips/blob/master/17.md) / [NIP-59](https://github.com/nostr-protocol/nips/blob/master/59.md) |
@@ -40,7 +40,7 @@ The app is the **reference implementation** establishing open Nostr protocol sta
 Formal NIP proposals and reference documents for developers building interoperable clients are stored in the [`nips/`](nips/) directory:
 
 1. **[`nips/hospitality-listings.md`](nips/hospitality-listings.md)**: NIP-99 Hospitality Hosting Profile (`kind: 30402`), 4-char geohash privacy standard, and tri-state hosting preferences.
-2. **[`nips/travel-community-profile.md`](nips/travel-community-profile.md)**: Travel & Community Profile (`kind: 30602`), interaction modes, language proficiencies, and NIP-39 cross-network links.
+2. **[`nips/travel-community-profile.md`](nips/travel-community-profile.md)**: Travel & Community Profile (`kind: 30602`), traveler nickname, languages, ISO 3166-1 country codes, cascading geohash tags, and NIP-39 cross-network links.
 3. **[`nips/interaction-references.md`](nips/interaction-references.md)**: Interaction References (`kind: 7654`), subject tags, interaction context, roles, and sentiment nullability rules.
 
 ---
@@ -170,17 +170,19 @@ References are **regular, historical Nostr events** (not addressable or replacea
 
 ### 3. Travel & Community Profile — Draft NIP (Kind 30602)
 
-To prevent standard social clients from clobbering domain-specific profile data in Kind 0, user travel preferences, languages, and interaction modes are published as addressable **Kind 30602** events.
+To prevent standard social clients from clobbering domain-specific profile data in Kind 0, user travel identity, nickname, languages, and current travel mobility are published as addressable **Kind 30602** events.
 
 #### Core Tags
 - `d` (**REQUIRED**): Profile identifier (defaults to `travel-profile`).
-- `mode` (**OPTIONAL**): Active interaction modes (`host`, `guest`, `meetup`, `rideshare`, `language_exchange`).
+- `name` (**OPTIONAL**): Traveler name, nickname, or trail name (`["name", "<name>"]`).
 - `language` (**OPTIONAL**): Spoken languages `["language", "<code>", "<proficiency>"]` (e.g. `["language", "en", "fluent"]`).
-- `origin_country` / `origin_city`: Origin hometown.
-- `home_country` / `home_city`: Current residence / base city.
-- `gender` / `birth_year`: Optional demographics (`birth_year` calculates age dynamically).
+- `origin_country` / `origin_city`: Origin hometown & cultural roots (ISO 3166-1 alpha-2 code).
+- `home_country` / `home_city`: Current residence / base city (ISO 3166-1 alpha-2 code).
+- `current_country` / `current_city`: Active nomad or travel location while on the road (ISO 3166-1 alpha-2 code).
+- `g` (**OPTIONAL**): Cascading geohash tags bounded between 3 to 5 characters for active presence location.
+- `gender` / `birth_year` / `birth_month` / `birth_day`: Optional demographics (`birth_year` calculates age dynamically).
 - `occupation` / `education`: Professional / personal background.
-- `t`: Interests / Topics (`cycling`, `hiking`, `nostr`).
+- `t`: Interests / Topics / Activities (`meetup`, `cycling`, `hiking`, `nostr`).
 - `image`: Direct photo image URLs of adventures, travels, and lifestyle (`["image", "<url>"]`).
 - `network`: Linked hospitality and travel community profiles (`["network", "<platform>", "<username>"]`).
 
@@ -192,19 +194,25 @@ To prevent standard social clients from clobbering domain-specific profile data 
   "content": "Slow traveler, software engineer, and cyclist. Passionate about cultural exchange and decentralized tech.",
   "tags": [
     ["d", "travel-profile"],
+    ["name", "NomadAlice"],
     ["gender", "female"],
     ["birth_year", "1995"],
+    ["birth_month", "4"],
+    ["birth_day", "12"],
     ["origin_country", "DE"],
     ["origin_city", "Munich"],
     ["home_country", "FR"],
     ["home_city", "Lyon"],
+    ["current_country", "MX"],
+    ["current_city", "Oaxaca"],
+    ["g", "9g3w8"],
+    ["g", "9g3w"],
+    ["g", "9g3"],
     ["occupation", "Software Engineer"],
     ["language", "de", "native"],
     ["language", "en", "fluent"],
     ["language", "fr", "intermediate"],
-    ["mode", "host"],
-    ["mode", "guest"],
-    ["mode", "meetup"],
+    ["t", "meetup"],
     ["t", "cycling"],
     ["t", "hiking"],
     ["image", "https://image.nostr.build/adventure1.jpg"],
