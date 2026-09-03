@@ -520,9 +520,19 @@ class ProfileScreen extends ConsumerWidget {
                               ? rawUrl
                               : 'https://$rawUrl';
                           final uri = Uri.tryParse(formattedUrl);
-                          if (uri != null && await canLaunchUrl(uri)) {
-                            await launchUrl(uri,
-                                mode: LaunchMode.externalApplication);
+                          if (uri != null) {
+                            try {
+                              await launchUrl(uri,
+                                  mode: LaunchMode.externalApplication);
+                            } catch (_) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                      content:
+                                          Text('Could not open: $formattedUrl')),
+                                );
+                              }
+                            }
                           }
                         },
                         borderRadius: BorderRadius.circular(6),
@@ -1246,16 +1256,25 @@ class ProfileScreen extends ConsumerWidget {
                     onTap: id.url.isNotEmpty
                         ? () async {
                             final uri = Uri.tryParse(id.url);
-                            if (uri != null && await canLaunchUrl(uri)) {
-                              await launchUrl(uri,
-                                  mode: LaunchMode.externalApplication);
-                            } else {
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                      content:
-                                          Text('Could not open: ${id.url}')),
-                                );
+                            if (uri != null) {
+                              try {
+                                final launched = await launchUrl(uri,
+                                    mode: LaunchMode.externalApplication);
+                                if (!launched && context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                        content:
+                                            Text('Could not open: ${id.url}')),
+                                  );
+                                }
+                              } catch (_) {
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                        content:
+                                            Text('Could not open: ${id.url}')),
+                                  );
+                                }
                               }
                             }
                           }
