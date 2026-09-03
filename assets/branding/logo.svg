@@ -1,14 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <!-- Minimal Dark Sage Container -->
-  <rect width="512" height="512" rx="122.88" fill="#151C18"/>
+  <!-- Warm Creme Container -->
+  <rect width="512" height="512" rx="122.88" fill="#F7F4EE"/>
   
   <!-- Subtle Framing Line -->
-  <rect x="10.24" y="10.24" width="491.52" height="491.52" rx="112.64" fill="none" stroke="#25322B" stroke-width="2"/>
+  <rect x="10.24" y="10.24" width="491.52" height="491.52" rx="112.64" fill="none" stroke="#E5DFD3" stroke-width="2"/>
 
   <!-- Minimal Sage Shelter Chevron (Clean Gable Roof) -->
   <path d="M 112.64 225.28 L 256.0 112.64 L 399.36 225.28" 
         fill="none" 
-        stroke="#749681" 
+        stroke="#4F755D" 
         stroke-width="43.52" 
         stroke-linecap="round" 
         stroke-linejoin="round"/>
@@ -16,11 +16,11 @@
   <!-- Minimal Lavender Open Archway (Welcoming Hospitality Door) -->
   <path d="M 179.2 389.12 L 179.2 276.48 C 179.2 230.4, 332.8 230.4, 332.8 276.48 L 332.8 389.12" 
         fill="none" 
-        stroke="#9D8EC2" 
+        stroke="#7A68A6" 
         stroke-width="38.4" 
         stroke-linecap="round" 
         stroke-linejoin="round"/>
 
   <!-- Sovereign Keypoint Core in Lavender -->
-  <circle cx="256.0" cy="281.6" r="23.04" fill="#9D8EC2"/>
+  <circle cx="256.0" cy="281.6" r="23.04" fill="#7A68A6"/>
 </svg>

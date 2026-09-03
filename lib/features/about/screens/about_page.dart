@@ -34,11 +34,69 @@ class _AboutPageState extends State<AboutPage>
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('About & Nostr Protocols'),
+        backgroundColor: Colors.transparent,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
+        flexibleSpace: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset(
+              'assets/branding/discover_banner.jpg',
+              fit: BoxFit.cover,
+              alignment: const Alignment(0, -0.25),
+              errorBuilder: (_, __, ___) =>
+                  Container(color: theme.colorScheme.primary),
+            ),
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withValues(alpha: 0.50),
+                    Colors.black.withValues(alpha: 0.82),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        title: const Text(
+          'About & Nostr Protocols',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+            shadows: [
+              Shadow(
+                color: Colors.black54,
+                offset: Offset(0, 1),
+                blurRadius: 3,
+              ),
+            ],
+          ),
+        ),
         bottom: TabBar(
           controller: _tabController,
-          indicatorColor: theme.colorScheme.primary,
+          indicatorColor: Colors.white,
           indicatorWeight: 3.0,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          labelStyle: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 13,
+            shadows: [
+              Shadow(
+                color: Colors.black45,
+                offset: Offset(0, 1),
+                blurRadius: 2,
+              ),
+            ],
+          ),
+          unselectedLabelStyle: const TextStyle(
+            fontWeight: FontWeight.w500,
+            fontSize: 13,
+          ),
           tabs: const [
             Tab(
               icon: Icon(Icons.travel_explore_rounded),
@@ -51,12 +109,14 @@ class _AboutPageState extends State<AboutPage>
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildTravelersTab(context, theme, isDark),
-          _buildDevelopersTab(context, theme, isDark),
-        ],
+      body: SelectionArea(
+        child: TabBarView(
+          controller: _tabController,
+          children: [
+            _buildTravelersTab(context, theme, isDark),
+            _buildDevelopersTab(context, theme, isDark),
+          ],
+        ),
       ),
     );
   }
@@ -77,7 +137,7 @@ class _AboutPageState extends State<AboutPage>
           ),
           const SizedBox(height: 12),
           Text(
-            'Hospitality Libre is a pure example of a free, open, decentralized home-sharing network built on the open Nostr protocol. There are no corporate middlemen, no subscription fees, and no centralized databases.\n\nYou own your profile & identity, your references, and your listings. If "Hospitality Libre" gets abandoned by developers, or you just don\'t like the way it works, you can simply move to another app that uses the same network, with your same identity, private message history, and all your information.\n\nSince anyone can build an app that uses the network, you can switch between different apps and interfaces that use the network, choosing whatever has the design and features you like best, without starting from scratch. As a developer, you can focus on building the best experience possible, without worrying about re-building the community and user base.\n\nOther apps, like Trip Hopping, also use the Nostr hospitlity network while offering more robust features you may expect, like meetups, hangouts, community notes, and ridesharing. Other apps will surely emerge with interesting travel and community features as well. "Hospitality Libre," however, serves as a clean and simple example of pure hospitality exchange. It is for hosts and travelers to connect, and for developers to use as a reference for building their own Nostr hospitality apps, and will accordingly reflect any changes in the protocol as it develops and evolves.',
+            'Hospitality Libre is a pure example of a free, open, decentralized home-sharing network built on the open Nostr protocol. There are no corporate middlemen, no subscription fees, and no centralized databases.\n\nYou own your profile & identity, your references, your connections with people, and your listings. Since anyone can build an app that uses the network, you can switch between whichever has the design and features you like best, without "starting over." Even if "Hospitality Libre" gets abandoned by developers, or you just don\'t like the way it works, you can simply move to another app that uses the same network, with your same identity, private message history, references, and all your information. No exporting, importing, or migrating data. It just works, everywhere.\n\nApp developers can focus on building the best experience possible, without worrying about re-building the community and user base.\n\nExisting apps, like Trip Hopping, also use the Nostr hospitality network while offering more robust features you may expect from a community travel site, like meetups, hangouts, community notes, and ridesharing. More apps will surely emerge with interesting travel and community features as well. "Hospitality Libre," however, serves as a clean and simple example of pure hospitality exchange. It is for hosts and travelers to connect, and for developers to use as a reference for building their own Nostr hospitality apps, and will develop and evolve whenever needed.',
             style: theme.textTheme.bodyLarge?.copyWith(
               height: 1.5,
               color: theme.colorScheme.onSurfaceVariant,

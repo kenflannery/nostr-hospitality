@@ -37,22 +37,22 @@ void main() {
 }
 
 /// Brand Palette:
-/// Sage:     #749681 (rgb: 116, 150, 129)
-/// Lavender: #9D8EC2 (rgb: 157, 142, 194)
-/// Dark BG:  #151C18 (rgb: 21, 28, 24)
-/// Slate:    #2A362F (rgb: 42, 54, 47)
+/// Sage:       #4F755D (rgb: 79, 117, 93)
+/// Lavender:   #7A68A6 (rgb: 122, 104, 166)
+/// Creme BG:   #F7F4EE (rgb: 247, 244, 238)
+/// Framing:    #E5DFD3 (rgb: 229, 223, 211)
 String _generateSvg(int size) {
   return '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 $size $size" width="$size" height="$size">
-  <!-- Minimal Dark Sage Container -->
-  <rect width="$size" height="$size" rx="${size * 0.24}" fill="#151C18"/>
+  <!-- Warm Creme Container -->
+  <rect width="$size" height="$size" rx="${size * 0.24}" fill="#F7F4EE"/>
   
   <!-- Subtle Framing Line -->
-  <rect x="${size * 0.02}" y="${size * 0.02}" width="${size * 0.96}" height="${size * 0.96}" rx="${size * 0.22}" fill="none" stroke="#25322B" stroke-width="2"/>
+  <rect x="${size * 0.02}" y="${size * 0.02}" width="${size * 0.96}" height="${size * 0.96}" rx="${size * 0.22}" fill="none" stroke="#E5DFD3" stroke-width="2"/>
 
   <!-- Minimal Sage Shelter Chevron (Clean Gable Roof) -->
   <path d="M ${size * 0.22} ${size * 0.44} L ${size * 0.50} ${size * 0.22} L ${size * 0.78} ${size * 0.44}" 
         fill="none" 
-        stroke="#749681" 
+        stroke="#4F755D" 
         stroke-width="${size * 0.085}" 
         stroke-linecap="round" 
         stroke-linejoin="round"/>
@@ -60,13 +60,13 @@ String _generateSvg(int size) {
   <!-- Minimal Lavender Open Archway (Welcoming Hospitality Door) -->
   <path d="M ${size * 0.35} ${size * 0.76} L ${size * 0.35} ${size * 0.54} C ${size * 0.35} ${size * 0.45}, ${size * 0.65} ${size * 0.45}, ${size * 0.65} ${size * 0.54} L ${size * 0.65} ${size * 0.76}" 
         fill="none" 
-        stroke="#9D8EC2" 
+        stroke="#7A68A6" 
         stroke-width="${size * 0.075}" 
         stroke-linecap="round" 
         stroke-linejoin="round"/>
 
   <!-- Sovereign Keypoint Core in Lavender -->
-  <circle cx="${size * 0.50}" cy="${size * 0.55}" r="${size * 0.045}" fill="#9D8EC2"/>
+  <circle cx="${size * 0.50}" cy="${size * 0.55}" r="${size * 0.045}" fill="#7A68A6"/>
 </svg>''';
 }
 
@@ -85,9 +85,9 @@ Uint8List _renderRasterPng(int size, {bool isMaskable = false}) {
   final cornerRadius = isMaskable ? 0.0 : size * 0.24;
 
   // Colors
-  const bgR = 21, bgG = 28, bgB = 24; // #151C18
-  const sageR = 116, sageG = 150, sageB = 129; // #749681
-  const lavR = 157, lavG = 142, lavB = 194; // #9D8EC2
+  const bgR = 247, bgG = 244, bgB = 238; // #F7F4EE (Creme)
+  const sageR = 79, sageG = 117, sageB = 93; // #4F755D (Sage)
+  const lavR = 122, lavG = 104, lavB = 166; // #7A68A6 (Lavender)
 
   // Geometry parameters in normalized units [0..1]
   final strokeRoof = 0.085;

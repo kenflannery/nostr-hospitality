@@ -190,6 +190,32 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        flexibleSpace: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset(
+              'assets/branding/discover_banner.jpg',
+              fit: BoxFit.cover,
+              alignment: const Alignment(0, -0.3),
+              errorBuilder: (_, __, ___) => Container(color: theme.colorScheme.primary),
+            ),
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withValues(alpha: 0.45),
+                    Colors.black.withValues(alpha: 0.72),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
         title: Row(
           children: [
             ClipRRect(
@@ -198,20 +224,33 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                 'assets/branding/logo.png',
                 width: 26,
                 height: 26,
-                errorBuilder: (_, __, ___) => Icon(
+                errorBuilder: (_, __, ___) => const Icon(
                   Icons.roofing_rounded,
-                  color: theme.colorScheme.primary,
+                  color: Colors.white,
                   size: 26,
                 ),
               ),
             ),
             const SizedBox(width: 10),
-            const Text('Hospitality Libre'),
+            const Text(
+              'Hospitality Libre',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+                shadows: [
+                  Shadow(
+                    color: Colors.black54,
+                    offset: Offset(0, 1),
+                    blurRadius: 3,
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.info_outline_rounded),
+            icon: const Icon(Icons.info_outline_rounded, color: Colors.white),
             tooltip: 'Nostr Protocol Specs',
             onPressed: () {
               Navigator.of(context).push(
