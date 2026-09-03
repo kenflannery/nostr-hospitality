@@ -105,7 +105,7 @@ class ProfileScreen extends ConsumerWidget {
     final hasTravelName =
         travelProfile?.name != null && travelProfile!.name!.trim().isNotEmpty;
     final primaryName =
-        hasTravelName ? travelProfile!.name!.trim() : profile.bestName;
+        hasTravelName ? travelProfile.name!.trim() : profile.bestName;
     final kind0Name = profile.bestName;
     final showKind0Subtitle = hasTravelName &&
         kind0Name.trim().isNotEmpty &&
