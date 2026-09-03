@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/nip19_utils.dart';
@@ -274,6 +275,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               );
             },
           ),
+          const SizedBox(height: 24),
+          const _AppVersionSection(),
           const SizedBox(height: 40),
         ],
       ),
@@ -325,6 +328,142 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             child: const Text('Done'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _AppVersionSection extends ConsumerWidget {
+  const _AppVersionSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final updateAsync = ref.watch(appUpdateInfoProvider);
+
+    return Card(
+      margin: EdgeInsets.zero,
+      color: theme.colorScheme.surfaceContainerLow,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: updateAsync.when(
+          data: (info) {
+            final isUpdate = info.isUpdateAvailable;
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: isUpdate
+                            ? theme.colorScheme.primaryContainer
+                            : theme.colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        isUpdate
+                            ? Icons.system_update_alt_rounded
+                            : Icons.check_circle_outline_rounded,
+                        color: isUpdate
+                            ? theme.colorScheme.primary
+                            : AppTheme.positiveGreen,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Hospitality Libre v${info.currentVersion}',
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            isUpdate
+                                ? 'Version v${info.latestVersion} is available'
+                                : 'You are on the latest version',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: isUpdate
+                                  ? theme.colorScheme.primary
+                                  : theme.colorScheme.outline,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (isUpdate)
+                      FilledButton(
+                        style: FilledButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                        ),
+                        onPressed: () {
+                          if (info.apkDownloadUrl != null) {
+                            launchUrl(
+                              Uri.parse(info.apkDownloadUrl!),
+                              mode: LaunchMode.externalApplication,
+                            );
+                          }
+                        },
+                        child: const Text('Update'),
+                      )
+                    else
+                      IconButton(
+                        icon: const Icon(Icons.refresh_rounded, size: 20),
+                        tooltip: 'Check for updates',
+                        onPressed: () {
+                          ref.invalidate(appUpdateInfoProvider);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Checking for app updates...'),
+                              duration: Duration(seconds: 2),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        },
+                      ),
+                  ],
+                ),
+              ],
+            );
+          },
+          loading: () => Row(
+            children: [
+              const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Checking for updates...',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.outline,
+                ),
+              ),
+            ],
+          ),
+          error: (_, __) => Row(
+            children: [
+              Icon(Icons.info_outline_rounded,
+                  size: 18, color: theme.colorScheme.outline),
+              const SizedBox(width: 8),
+              Text(
+                'Hospitality Libre (Offline / Unverified)',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.outline,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

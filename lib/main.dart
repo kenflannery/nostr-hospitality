@@ -7,6 +7,7 @@ import 'core/theme/app_theme.dart';
 import 'features/discover/screens/discover_screen.dart';
 import 'features/messaging/screens/conversations_screen.dart';
 import 'features/profile/screens/profile_screen.dart';
+import 'widgets/update_gate_banner.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -84,14 +85,14 @@ class AppScrollBehavior extends MaterialScrollBehavior {
       };
 }
 
-class MainNavigationScreen extends StatefulWidget {
+class MainNavigationScreen extends ConsumerStatefulWidget {
   const MainNavigationScreen({super.key});
 
   @override
-  State<MainNavigationScreen> createState() => _MainNavigationScreenState();
+  ConsumerState<MainNavigationScreen> createState() => _MainNavigationScreenState();
 }
 
-class _MainNavigationScreenState extends State<MainNavigationScreen> {
+class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
   int _currentIndex = 0;
 
   final List<Widget> _screens = const [
@@ -103,9 +104,19 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _screens,
+      body: SafeArea(
+        top: false,
+        child: Column(
+          children: [
+            const UpdateGateBanner(),
+            Expanded(
+              child: IndexedStack(
+                index: _currentIndex,
+                children: _screens,
+              ),
+            ),
+          ],
+        ),
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
