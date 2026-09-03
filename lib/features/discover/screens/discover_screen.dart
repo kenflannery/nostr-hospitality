@@ -210,18 +210,6 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
           ],
         ),
         actions: [
-          // View Toggle (List vs Map)
-          IconButton(
-            icon: Icon(_isMapView ? Icons.view_list_rounded : Icons.map_rounded),
-            tooltip: _isMapView ? 'Switch to List View' : 'Switch to Map View',
-            onPressed: () {
-              setState(() {
-                _isMapView = !_isMapView;
-                _selectedCluster = null;
-                _citySuggestions = [];
-              });
-            },
-          ),
           IconButton(
             icon: const Icon(Icons.info_outline_rounded),
             tooltip: 'Nostr Protocol Specs',
@@ -345,32 +333,56 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                       const Divider(height: 1),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
-                        child: SegmentedButton<ListingTypeFilter>(
-                          segments: const [
-                            ButtonSegment(
-                              value: ListingTypeFilter.all,
-                              label: Text('All'),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: SegmentedButton<ListingTypeFilter>(
+                                segments: const [
+                                  ButtonSegment(
+                                    value: ListingTypeFilter.all,
+                                    label: Text('All'),
+                                  ),
+                                  ButtonSegment(
+                                    value: ListingTypeFilter.offersOnly,
+                                    label: Text('Hosts'),
+                                    icon: Icon(Icons.roofing_rounded, size: 15),
+                                  ),
+                                  ButtonSegment(
+                                    value: ListingTypeFilter.requestsOnly,
+                                    label: Text('Travelers'),
+                                    icon: Icon(Icons.luggage_rounded, size: 15),
+                                  ),
+                                ],
+                                selected: {ref.watch(discoverListingTypeFilterProvider)},
+                                onSelectionChanged: (set) {
+                                  ref.read(discoverListingTypeFilterProvider.notifier).state = set.first;
+                                  setState(() => _selectedCluster = null);
+                                },
+                                style: const ButtonStyle(
+                                  visualDensity: VisualDensity.compact,
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                ),
+                              ),
                             ),
-                            ButtonSegment(
-                              value: ListingTypeFilter.offersOnly,
-                              label: Text('Hosts'),
-                              icon: Icon(Icons.roofing_rounded, size: 15),
-                            ),
-                            ButtonSegment(
-                              value: ListingTypeFilter.requestsOnly,
-                              label: Text('Travelers'),
-                              icon: Icon(Icons.luggage_rounded, size: 15),
+                            const SizedBox(width: 8),
+                            IconButton.filledTonal(
+                              visualDensity: VisualDensity.compact,
+                              padding: const EdgeInsets.all(8),
+                              constraints: const BoxConstraints(),
+                              icon: Icon(
+                                _isMapView ? Icons.view_list_rounded : Icons.map_rounded,
+                                size: 20,
+                              ),
+                              tooltip: _isMapView ? 'Switch to List View' : 'Switch to Map View',
+                              onPressed: () {
+                                setState(() {
+                                  _isMapView = !_isMapView;
+                                  _selectedCluster = null;
+                                  _citySuggestions = [];
+                                });
+                              },
                             ),
                           ],
-                          selected: {ref.watch(discoverListingTypeFilterProvider)},
-                          onSelectionChanged: (set) {
-                            ref.read(discoverListingTypeFilterProvider.notifier).state = set.first;
-                            setState(() => _selectedCluster = null);
-                          },
-                          style: const ButtonStyle(
-                            visualDensity: VisualDensity.compact,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
                         ),
                       ),
                     ],
