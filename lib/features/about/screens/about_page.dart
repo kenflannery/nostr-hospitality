@@ -77,7 +77,7 @@ class _AboutPageState extends State<AboutPage>
           ),
           const SizedBox(height: 12),
           Text(
-            'Hospitality Libre is a free, open, decentralized home-sharing network built on the open Nostr protocol. There are no corporate middlemen, no subscription fees, and no centralized databases.',
+            'Hospitality Libre is a pure example of a free, open, decentralized home-sharing network built on the open Nostr protocol. There are no corporate middlemen, no subscription fees, and no centralized databases.\n\nYou own your profile & identity, your references, and your listings. If "Hospitality Libre" gets abandoned by developers, or you just don\'t like the way it works, you can simply move to another app that uses the same network, with your same identity, private message history, and all your information.\n\nSince anyone can build an app that uses the network, you can switch between different apps and interfaces that use the network, choosing whatever has the design and features you like best, without starting from scratch. As a developer, you can focus on building the best experience possible, without worrying about re-building the community and user base.\n\nOther apps, like Trip Hopping, also use the Nostr hospitlity network while offering more robust features you may expect, like meetups, hangouts, community notes, and ridesharing. Other apps will surely emerge with interesting travel and community features as well. "Hospitality Libre," however, serves as a clean and simple example of pure hospitality exchange. It is for hosts and travelers to connect, and for developers to use as a reference for building their own Nostr hospitality apps, and will accordingly reflect any changes in the protocol as it develops and evolves.',
             style: theme.textTheme.bodyLarge?.copyWith(
               height: 1.5,
               color: theme.colorScheme.onSurfaceVariant,
@@ -392,7 +392,8 @@ class _AboutPageState extends State<AboutPage>
             context,
             theme,
             isDark,
-            title: 'Hospitality Classifieds: Offers & Requests (Kind 30402 - NIP-99)',
+            title:
+                'Hospitality Classifieds: Offers & Requests (Kind 30402 - NIP-99)',
             intro:
                 'NIP-99 Classified Listing specification for both Hosting Offers and Traveler Stay Requests with 3 to 5 character geohash privacy bounds (defaulting to 5 characters, ~5km neighborhood zone), start/end date tags, and tri-state household preferences (see nips/hospitality-listings.md):',
             jsonSpec: '''{
@@ -560,8 +561,7 @@ class _AboutPageState extends State<AboutPage>
             theme,
             isDark,
             title: 'Profile Metadata Event (Kind 0)',
-            intro:
-                'Standard Nostr user profile metadata event (NIP-01):',
+            intro: 'Standard Nostr user profile metadata event (NIP-01):',
             jsonSpec: '''{
   "kind": 0,
   "content": "{\\"name\\": \\"alice\\", \\"display_name\\": \\"Alice Traveler\\", \\"about\\": \\"Slow travel and hiking enthusiast\\", \\"nip05\\": \\"alice@example.com\\"}",
@@ -586,7 +586,8 @@ class _AboutPageState extends State<AboutPage>
             title: 'Private Messaging (NIP-17)',
             intro:
                 'End-to-end encrypted private direct messaging with gift wrapping (NIP-59 / NIP-17):',
-            jsonSpec: '''// Gift Wrap (Kind 1059) -> Seal (Kind 13) -> Rumor (Kind 14)
+            jsonSpec:
+                '''// Gift Wrap (Kind 1059) -> Seal (Kind 13) -> Rumor (Kind 14)
 {
   "kind": 1059,
   "content": "<nip44-encrypted-seal>",
