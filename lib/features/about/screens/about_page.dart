@@ -541,7 +541,7 @@ class _AboutPageState extends State<AboutPage>
             tags: [
               '`d` (REQUIRED) - Addressable profile identifier (defaults to `travel-profile`)',
               '`name` (OPTIONAL) - Preferred traveler name, nickname, or trail name',
-              '`image` (OPTIONAL) - Direct photo image URLs of adventures, travels, or lifestyle hosted on decentralized media servers',
+              '`image` (OPTIONAL) - Direct photo image URLs of adventures, travels, or lifestyle (1st image is treated as primary/cover photo)',
               '`language` - Spoken languages: `["language", "<code>", "<level>"]` (e.g. `["language", "en", "fluent"]`)',
               '`origin_country` / `origin_city` - Origin hometown & roots (ISO 3166-1 alpha-2 2-letter country code)',
               '`home_country` / `home_city` - Current home base / residence location (ISO 3166-1 alpha-2 2-letter country code)',

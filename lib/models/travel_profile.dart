@@ -188,6 +188,9 @@ class TravelProfile {
     return authorPubkey.length >= 8 ? authorPubkey.substring(0, 8) : authorPubkey;
   }
 
+  /// Primary / featured travel photo (first image tag in order)
+  String? get primaryImage => images.isNotEmpty ? images.first : null;
+
   /// Calculates dynamic age based on birth year (and optional birthMonth / birthDay).
   int? get calculatedAge {
     if (birthYear == null) return null;

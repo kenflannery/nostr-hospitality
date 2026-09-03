@@ -69,6 +69,7 @@ void main() {
       expect(profile.languages[0].level, 'native');
       expect(profile.interests, ['cycling', 'hiking', 'meetup']);
       expect(profile.images, ['https://image.nostr.build/trip1.jpg', 'https://image.nostr.build/trip2.jpg']);
+      expect(profile.primaryImage, 'https://image.nostr.build/trip1.jpg');
       expect(profile.externalIdentities.length, 2);
       expect(profile.externalIdentities[0].platform, 'triphopping');
       expect(profile.externalIdentities[0].username, 'alice_nomad');

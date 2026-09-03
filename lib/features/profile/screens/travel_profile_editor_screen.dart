@@ -540,7 +540,7 @@ class _TravelProfileEditorScreenState extends ConsumerState<TravelProfileEditorS
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Upload photos from your adventures, travels, or hometown. Hosted on nostr.build and published with your Kind 30602 profile.',
+                      'Upload photos from your adventures, travels, or hometown. The first photo is your primary featured travel photo.',
                       style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                     ),
                     const SizedBox(height: 16),
@@ -581,17 +581,74 @@ class _TravelProfileEditorScreenState extends ConsumerState<TravelProfileEditorS
                             Stack(
                               children: [
                                 Container(
-                                  width: 100,
-                                  height: 100,
+                                  width: 105,
+                                  height: 105,
                                   decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: theme.colorScheme.outlineVariant),
+                                    border: Border.all(
+                                      color: i == 0 ? theme.colorScheme.primary : theme.colorScheme.outlineVariant,
+                                      width: i == 0 ? 2.5 : 1.0,
+                                    ),
                                     image: DecorationImage(
                                       image: NetworkImage(_images[i]),
                                       fit: BoxFit.cover,
                                     ),
                                   ),
                                 ),
+                                // Primary Badge on index 0
+                                if (i == 0)
+                                  Positioned(
+                                    top: 4,
+                                    left: 4,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: theme.colorScheme.primary,
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: const Text(
+                                        'Primary',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  )
+                                else
+                                  // Make Primary Button on index > 0
+                                  Positioned(
+                                    bottom: 4,
+                                    left: 4,
+                                    child: GestureDetector(
+                                      onTap: () {
+                                        setState(() {
+                                          final img = _images.removeAt(i);
+                                          _images.insert(0, img);
+                                        });
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: Colors.black.withValues(alpha: 0.75),
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: const Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(Icons.star_rounded, color: Colors.amber, size: 12),
+                                            SizedBox(width: 2),
+                                            Text(
+                                              'Set Main',
+                                              style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                // Delete Button
                                 Positioned(
                                   top: 4,
                                   right: 4,

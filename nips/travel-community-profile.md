@@ -119,6 +119,7 @@ Hashtags and topics declaring passions, hobbies, and community activities (e.g. 
 
 ### `image` (OPTIONAL)
 Direct HTTPS URLs of personal travel, adventure, and lifestyle photos hosted on decentralized media servers (e.g. `nostr.build` via NIP-96).
+- **Primary / Featured Image**: The **first `image` tag** in the event tags array is treated as the traveler's primary featured photo for profile previews and search cards. Subsequent `image` tags form the adventure photo gallery in order.
 
 ### `network` (OPTIONAL)
 Linked hospitality, travel, and social network accounts formatted as `["network", "<platform>", "<username>", "<optional_url_or_proof>"]`:

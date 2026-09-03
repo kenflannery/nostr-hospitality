@@ -183,7 +183,7 @@ To prevent standard social clients from clobbering domain-specific profile data 
 - `gender` / `birth_year` / `birth_month` / `birth_day`: Optional demographics (`birth_year` calculates age dynamically).
 - `occupation` / `education`: Professional / personal background.
 - `t`: Interests / Topics / Activities (`meetup`, `cycling`, `hiking`, `nostr`).
-- `image`: Direct photo image URLs of adventures, travels, and lifestyle (`["image", "<url>"]`).
+- `image`: Direct photo image URLs of adventures, travels, and lifestyle (`["image", "<url>"]`, 1st image is treated as primary/cover).
 - `network`: Linked hospitality and travel community profiles (`["network", "<platform>", "<username>"]`).
 
 #### Example Kind 30602 Profile Event
