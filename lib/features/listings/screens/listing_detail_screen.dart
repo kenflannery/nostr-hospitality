@@ -82,6 +82,9 @@ class ListingDetailScreen extends ConsumerWidget {
     final hostProfile = hostProfileAsync.valueOrNull;
     final hostName = hostProfile?.bestName ?? listing.authorPubkey.substring(0, 8);
 
+    final hostLastActiveAsync = ref.watch(userLastActiveProvider(listing.authorPubkey));
+    final hostLastActive = hostLastActiveAsync.valueOrNull;
+
     final summaryAsync = ref.watch(userReferenceSummaryProvider(listing.authorPubkey));
     final summary = summaryAsync.valueOrNull;
 
@@ -312,7 +315,7 @@ class ListingDetailScreen extends ConsumerWidget {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        'Posted ${DateFormatter.formatShort(listing.createdAt)}',
+                        'Last updated ${DateFormatter.formatShort(listing.createdAt)}',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.outline,
                         ),
@@ -377,6 +380,25 @@ class ListingDetailScreen extends ConsumerWidget {
                                     style: theme.textTheme.bodySmall?.copyWith(
                                       color: theme.colorScheme.primary,
                                     ),
+                                  ),
+                                ],
+                                if (hostLastActive != null) ...[
+                                  const SizedBox(height: 3),
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.bolt_rounded,
+                                        size: 14,
+                                        color: theme.colorScheme.primary,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Active on Nostr ${DateFormatter.formatRelative(hostLastActive)}',
+                                        style: theme.textTheme.bodySmall?.copyWith(
+                                          color: theme.colorScheme.onSurfaceVariant,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ],
                                 if (summary != null && summary.isNotEmpty) ...[

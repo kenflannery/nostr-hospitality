@@ -194,6 +194,13 @@ final userTravelProfileProvider =
   return repo.getTravelProfile(pubkey);
 });
 
+/// Generic last active timestamp on Nostr provider by pubkey
+final userLastActiveProvider =
+    FutureProvider.family.autoDispose<DateTime?, String>((ref, pubkey) async {
+  final repo = ref.watch(profileRepositoryProvider);
+  return repo.getLastActive(pubkey);
+});
+
 /// Filter for Discover screen (All, Offers Only, Requests Only)
 final discoverListingTypeFilterProvider =
     StateProvider<ListingTypeFilter>((ref) => ListingTypeFilter.all);

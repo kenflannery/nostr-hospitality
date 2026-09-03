@@ -10,6 +10,7 @@ class ProfileRepository {
   final NostrService _nostrService;
   final Map<String, UserProfile> _profileCache = {};
   final Map<String, TravelProfile> _travelProfileCache = {};
+  final Map<String, DateTime> _lastActiveCache = {};
 
   ProfileRepository(this._nostrService);
 
@@ -114,5 +115,35 @@ class ProfileRepository {
     await _nostrService.broadcastEvent(event);
     _travelProfileCache[profile.authorPubkey] = profile;
     return profile;
+  }
+
+  /// Retrieves the most recent public activity timestamp on Nostr for a pubkey.
+  Future<DateTime?> getLastActive(String pubkey, {bool forceRefresh = false}) async {
+    if (!forceRefresh && _lastActiveCache.containsKey(pubkey)) {
+      return _lastActiveCache[pubkey];
+    }
+
+    final filter = Filter(
+      authors: [pubkey],
+      limit: 1,
+    );
+
+    try {
+      final events = await _nostrService
+          .queryEvents(filters: [filter])
+          .timeout(const Duration(seconds: 4), onTimeout: (sink) => sink.close())
+          .toList();
+
+      if (events.isNotEmpty) {
+        events.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        final latest = DateTime.fromMillisecondsSinceEpoch(events.first.createdAt * 1000);
+        _lastActiveCache[pubkey] = latest;
+        return latest;
+      }
+    } catch (_) {
+      // Timeout or relay error
+    }
+
+    return _lastActiveCache[pubkey];
   }
 }

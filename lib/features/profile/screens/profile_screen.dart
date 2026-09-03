@@ -81,6 +81,7 @@ class ProfileScreen extends ConsumerWidget {
     final profileAsync = ref.watch(userProfileProvider(targetPubkey));
     final travelProfileAsync =
         ref.watch(userTravelProfileProvider(targetPubkey));
+    final lastActiveAsync = ref.watch(userLastActiveProvider(targetPubkey));
     final listingAsync = ref.watch(authorListingProvider(targetPubkey));
     final authorListingsAsync =
         ref.watch(authorListingsStreamProvider(targetPubkey));
@@ -91,6 +92,7 @@ class ProfileScreen extends ConsumerWidget {
     final profile =
         profileAsync.valueOrNull ?? UserProfile(pubkey: targetPubkey);
     final travelProfile = travelProfileAsync.valueOrNull;
+    final lastActive = lastActiveAsync.valueOrNull;
     final listing = listingAsync.valueOrNull;
     final allAuthorListings =
         authorListingsAsync.valueOrNull ?? (listing != null ? [listing] : []);
@@ -182,6 +184,7 @@ class ProfileScreen extends ConsumerWidget {
         onRefresh: () async {
           ref.invalidate(userProfileProvider(targetPubkey));
           ref.invalidate(userTravelProfileProvider(targetPubkey));
+          ref.invalidate(userLastActiveProvider(targetPubkey));
           ref.invalidate(authorListingProvider(targetPubkey));
           ref.invalidate(authorListingsStreamProvider(targetPubkey));
           ref.invalidate(userReferenceSummaryProvider(targetPubkey));
@@ -288,16 +291,70 @@ class ProfileScreen extends ConsumerWidget {
                       ],
                     ),
 
-                    // Traveler Nickname & Current Location Badges (Kind 30602)
-                    if (travelProfile != null &&
-                        (travelProfile.name != null ||
-                            travelProfile.formattedCurrent != null)) ...[
+                    // Badges: Active on Nostr, Traveler Nickname & Current Location
+                    if (lastActive != null ||
+                        (travelProfile != null &&
+                            (travelProfile.name != null ||
+                                travelProfile.formattedCurrent != null))) ...[
                       const SizedBox(height: 12),
                       Wrap(
                         spacing: 8,
                         runSpacing: 6,
                         children: [
-                          if (travelProfile.name != null &&
+                          if (lastActive != null)
+                            Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: () => _showActivityExplanationDialog(
+                                  context,
+                                  lastActive,
+                                  theme,
+                                ),
+                                borderRadius: BorderRadius.circular(16),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: theme
+                                        .colorScheme.surfaceContainerHighest
+                                        .withValues(alpha: 0.6),
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: theme.colorScheme.outlineVariant
+                                          .withValues(alpha: 0.5),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.bolt_rounded,
+                                        size: 14,
+                                        color: theme.colorScheme.primary,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Active on Nostr ${DateFormatter.formatRelative(lastActive)}',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w500,
+                                          color: theme
+                                              .colorScheme.onSurfaceVariant,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Icon(
+                                        Icons.info_outline_rounded,
+                                        size: 12,
+                                        color: theme.colorScheme.outline,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          if (travelProfile != null &&
+                              travelProfile.name != null &&
                               travelProfile.name!.isNotEmpty)
                             Container(
                               padding: const EdgeInsets.symmetric(
@@ -328,7 +385,8 @@ class ProfileScreen extends ConsumerWidget {
                                 ],
                               ),
                             ),
-                          if (travelProfile.formattedCurrent != null)
+                          if (travelProfile != null &&
+                              travelProfile.formattedCurrent != null)
                             Container(
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 10, vertical: 4),
@@ -1298,6 +1356,85 @@ class ProfileScreen extends ConsumerWidget {
           ),
         ),
       ],
+    );
+  }
+
+  void _showActivityExplanationDialog(
+      BuildContext context, DateTime lastActive, ThemeData theme) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        icon: Icon(Icons.bolt_rounded, size: 36, color: theme.colorScheme.primary),
+        title: const Text(
+          'Active on Nostr',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: theme.colorScheme.primary.withValues(alpha: 0.2),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Last Public Event',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${DateFormatter.formatShort(lastActive)} at ${DateFormatter.formatTime(lastActive)} (${DateFormatter.formatRelative(lastActive)})',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'How is this determined?',
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Unlike traditional platforms that log private logins to a centralized server, Nostr has no central server or login database. Reading feeds and messages is completely passive and private.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'This activity indicator reflects the timestamp of the latest public event published by this user across the Nostr network (such as listing updates, profile edits, public notes, references, or reactions).',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                height: 1.4,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Got it'),
+          ),
+        ],
+      ),
     );
   }
 }
