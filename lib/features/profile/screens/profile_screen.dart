@@ -102,9 +102,18 @@ class ProfileScreen extends ConsumerWidget {
     final summary = summaryAsync.valueOrNull;
     final references = referencesStream.valueOrNull ?? [];
 
+    final hasTravelName =
+        travelProfile?.name != null && travelProfile!.name!.trim().isNotEmpty;
+    final primaryName =
+        hasTravelName ? travelProfile!.name!.trim() : profile.bestName;
+    final kind0Name = profile.bestName;
+    final showKind0Subtitle = hasTravelName &&
+        kind0Name.trim().isNotEmpty &&
+        kind0Name.trim().toLowerCase() != primaryName.toLowerCase();
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(isOwnProfile ? 'My Profile' : profile.bestName),
+        title: Text(isOwnProfile ? 'My Profile' : primaryName),
         actions: [
           if (isOwnProfile)
             IconButton(
@@ -123,7 +132,7 @@ class ProfileScreen extends ConsumerWidget {
               if (value == 'raw_kind0') {
                 showRawEventDialog(
                   context,
-                  title: 'Kind 0 Metadata (${profile.bestName})',
+                  title: 'Kind 0 Metadata ($primaryName)',
                   event: profile,
                   description: 'NIP-01 User Metadata Event',
                 );
@@ -216,7 +225,7 @@ class ProfileScreen extends ConsumerWidget {
                       children: [
                         UserAvatar(
                           imageUrl: profile.picture,
-                          nameOrPubkey: profile.bestName,
+                          nameOrPubkey: primaryName,
                           radius: 36,
                         ),
                         const SizedBox(width: 16),
@@ -225,11 +234,21 @@ class ProfileScreen extends ConsumerWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                profile.bestName,
+                                primaryName,
                                 style: theme.textTheme.titleLarge?.copyWith(
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
+                              if (showKind0Subtitle) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  kind0Name,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
                               if (profile.nip05 != null &&
                                   profile.nip05!.isNotEmpty) ...[
                                 const SizedBox(height: 2),
@@ -449,7 +468,7 @@ class ProfileScreen extends ConsumerWidget {
                                   MaterialPageRoute(
                                     builder: (_) => ChatScreen(
                                       recipientPubkey: targetPubkey,
-                                      recipientName: profile.bestName,
+                                      recipientName: primaryName,
                                     ),
                                   ),
                                 );
@@ -467,7 +486,7 @@ class ProfileScreen extends ConsumerWidget {
                                   MaterialPageRoute(
                                     builder: (_) => ReferenceComposerScreen(
                                       subjectPubkey: targetPubkey,
-                                      subjectName: profile.bestName,
+                                      subjectName: primaryName,
                                       initialListing: listing,
                                     ),
                                   ),
@@ -965,7 +984,7 @@ class ProfileScreen extends ConsumerWidget {
                                 MaterialPageRoute(
                                   builder: (_) => ReferenceComposerScreen(
                                     subjectPubkey: targetPubkey,
-                                    subjectName: profile.bestName,
+                                    subjectName: primaryName,
                                     initialListing: listing,
                                   ),
                                 ),
@@ -1029,15 +1048,6 @@ class ProfileScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Travel story/content
-            if (travelProfile.content.trim().isNotEmpty) ...[
-              Text(
-                travelProfile.content,
-                style: theme.textTheme.bodyMedium?.copyWith(height: 1.5),
-              ),
-              const SizedBox(height: 16),
-            ],
-
             // Demographics, Nickname, Locations
             if (travelProfile.name != null ||
                 travelProfile.formattedCurrent != null ||
@@ -1086,7 +1096,7 @@ class ProfileScreen extends ConsumerWidget {
 
             // Travel & Lifestyle Photos
             if (travelProfile.images.isNotEmpty) ...[
-              Text('Photos & Adventures',
+              Text('Photos',
                   style: theme.textTheme.labelMedium
                       ?.copyWith(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
@@ -1149,6 +1159,15 @@ class ProfileScreen extends ConsumerWidget {
                     );
                   },
                 ),
+              ),
+              const SizedBox(height: 16),
+            ],
+
+            // Travel story/content
+            if (travelProfile.content.trim().isNotEmpty) ...[
+              Text(
+                travelProfile.content,
+                style: theme.textTheme.bodyMedium?.copyWith(height: 1.5),
               ),
               const SizedBox(height: 16),
             ],
