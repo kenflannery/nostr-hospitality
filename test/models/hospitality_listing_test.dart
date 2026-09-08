@@ -185,7 +185,6 @@ void main() {
           ['published_at', '1730000000'],
           ['t', 'hospitality'],
           ['t', 'hospitality-request'],
-          ['type', 'request'],
           ['start', '1730505600'], // Nov 2, 2024
           ['end', '1730764800'],   // Nov 5, 2024
           ['guests', '2'],
@@ -204,7 +203,7 @@ void main() {
       expect(listing.maxGuests, 2);
     });
 
-    test('Serializes Stay Request to Nip01Event with start, end, and type tags', () {
+    test('Serializes Stay Request to Nip01Event with start, end, and hospitality-request tags', () {
       final startDate = DateTime.fromMillisecondsSinceEpoch(1730505600 * 1000);
       final endDate = DateTime.fromMillisecondsSinceEpoch(1730764800 * 1000);
 
@@ -235,8 +234,8 @@ void main() {
       expect(tTags.contains('hospitality-request'), true);
       expect(tTags.contains('Home'), false);
 
-      final typeTag = event.tags.firstWhere((t) => t.isNotEmpty && t[0] == 'type');
-      expect(typeTag[1], 'request');
+      // Verify no non-standard type tag is emitted
+      expect(event.tags.any((t) => t.isNotEmpty && t[0] == 'type'), false);
 
       final startTag = event.tags.firstWhere((t) => t.isNotEmpty && t[0] == 'start');
       expect(startTag[1], '1730505600');

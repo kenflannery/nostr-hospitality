@@ -109,19 +109,7 @@ class HospitalityListing {
   /// Whether this listing is a traveler stay request (seeking accommodation / public trip).
   bool get isRequest {
     final lowerCats = categories.map((c) => c.toLowerCase()).toSet();
-    if (lowerCats.contains(NostrConstants.topicHospitalityRequest.toLowerCase()) ||
-        lowerCats.contains('request') ||
-        lowerCats.contains('stay-request') ||
-        lowerCats.contains('travel-request') ||
-        lowerCats.contains('trip')) {
-      return true;
-    }
-    for (final tag in rawTags) {
-      if (tag.length > 1 && tag[0].toLowerCase() == 'type' && tag[1].toLowerCase() == 'request') {
-        return true;
-      }
-    }
-    return false;
+    return lowerCats.contains(NostrConstants.topicHospitalityRequest.toLowerCase());
   }
 
   /// Whether this listing is a hosting offer (offering accommodation).
@@ -412,9 +400,6 @@ class HospitalityListing {
     for (final topic in standardTopics) {
       tags.add([NostrConstants.tagT, topic]);
     }
-
-    // Explicit type tag for interoperability
-    tags.add(['type', isRequest ? 'request' : 'offer']);
 
     // 9. Hosting Preferences / Traveler Needs Tags (Emitted ONLY if non-null)
     if (maxGuests != null) {
