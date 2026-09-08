@@ -96,8 +96,8 @@ class ProfileScreen extends ConsumerWidget {
     final listing = listingAsync.valueOrNull;
     final allAuthorListings =
         authorListingsAsync.valueOrNull ?? (listing != null ? [listing] : []);
-    final hostingOffer =
-        allAuthorListings.where((l) => l.isOffer).firstOrNull ?? listing;
+    final hostingOffers = allAuthorListings.where((l) => l.isOffer).toList();
+    final hostingOffer = hostingOffers.firstOrNull ?? listing;
     final travelRequests = allAuthorListings.where((l) => l.isRequest).toList();
     final summary = summaryAsync.valueOrNull;
     final references = referencesStream.valueOrNull ?? [];
@@ -647,7 +647,7 @@ class ProfileScreen extends ConsumerWidget {
                         ),
                       ),
 
-                    // --- SECTION: Hosting Offer ---
+                    // --- SECTION: Hosting Offers ---
                     const SizedBox(height: 24),
                     const Divider(),
                     const SizedBox(height: 16),
@@ -660,7 +660,9 @@ class ProfileScreen extends ConsumerWidget {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          'Hosting Offer',
+                          hostingOffers.length > 1
+                              ? 'Hosting Spaces (${hostingOffers.length})'
+                              : 'Hosting Offer',
                           style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
@@ -671,128 +673,233 @@ class ProfileScreen extends ConsumerWidget {
                             onPressed: () {
                               Navigator.of(context).push(
                                 MaterialPageRoute(
-                                  builder: (_) => ListingEditorScreen(
-                                      initialListing: hostingOffer,
+                                  builder: (_) => const ListingEditorScreen(
                                       initialIsRequest: false),
                                 ),
                               );
                             },
-                            icon: Icon(
-                                hostingOffer == null ? Icons.add : Icons.edit,
-                                size: 16),
-                            label: Text(
-                                hostingOffer == null ? 'Create Offer' : 'Edit'),
+                            icon: const Icon(Icons.add_rounded, size: 16),
+                            label: Text(hostingOffers.isEmpty
+                                ? 'Create Offer'
+                                : 'Add Space'),
                           ),
                       ],
                     ),
                     const SizedBox(height: 10),
 
-                    if (hostingOffer != null)
-                      Card(
-                        margin: EdgeInsets.zero,
-                        color: theme.colorScheme.surfaceContainerLow,
-                        child: InkWell(
-                          onTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    ListingDetailScreen(listing: hostingOffer),
+                    // Multi-location clarification notice if author has 2+ hosting offers
+                    if (hostingOffers.length > 1) ...[
+                      Container(
+                        width: double.infinity,
+                        margin: const EdgeInsets.only(bottom: 12.0),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.primaryContainer
+                              .withValues(alpha: 0.35),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: theme.colorScheme.primary
+                                .withValues(alpha: 0.3),
+                          ),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(
+                              Icons.pin_drop_rounded,
+                              size: 20,
+                              color: theme.colorScheme.primary,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'This member hosts in multiple locations (${hostingOffers.length} spaces)',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                      color: theme.colorScheme.onSurface,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Check each space below for its specific neighborhood, available dates, and accommodation type.',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                      height: 1.3,
+                                    ),
+                                  ),
+                                ],
                               ),
-                            );
-                          },
-                          borderRadius: BorderRadius.circular(16),
-                          child: Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 8, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: hostingOffer.isActive
-                                            ? AppTheme.positiveGreen
-                                                .withValues(alpha: 0.12)
-                                            : Colors.grey
-                                                .withValues(alpha: 0.12),
-                                        borderRadius: BorderRadius.circular(6),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+
+                    if (hostingOffers.isNotEmpty) ...[
+                      ...hostingOffers.map((offer) => Padding(
+                            padding: const EdgeInsets.only(bottom: 12.0),
+                            child: Card(
+                              margin: EdgeInsets.zero,
+                              color: theme.colorScheme.surfaceContainerLow,
+                              child: InkWell(
+                                onTap: () {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          ListingDetailScreen(listing: offer),
+                                    ),
+                                  );
+                                },
+                                borderRadius: BorderRadius.circular(16),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 8, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: offer.isActive
+                                                  ? AppTheme.positiveGreen
+                                                      .withValues(alpha: 0.12)
+                                                  : Colors.grey
+                                                      .withValues(alpha: 0.12),
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
+                                            ),
+                                            child: Text(
+                                              offer.isActive
+                                                  ? 'Accepting Guests'
+                                                  : 'Inactive',
+                                              style: TextStyle(
+                                                color: offer.isActive
+                                                    ? AppTheme.positiveGreen
+                                                    : Colors.grey,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 11,
+                                              ),
+                                            ),
+                                          ),
+                                          if (offer.sleepingArrangement != null) ...[
+                                            const SizedBox(width: 8),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(
+                                                  horizontal: 8, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: theme.colorScheme.surfaceContainerHighest,
+                                                borderRadius: BorderRadius.circular(6),
+                                              ),
+                                              child: Text(
+                                                offer.sleepingArrangement!
+                                                    .replaceAll('_', ' ')
+                                                    .toUpperCase(),
+                                                style: TextStyle(
+                                                  color: theme.colorScheme.onSurfaceVariant,
+                                                  fontWeight: FontWeight.w600,
+                                                  fontSize: 10,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                          const Spacer(),
+                                          Icon(
+                                            Icons.location_on_outlined,
+                                            size: 14,
+                                            color: theme.colorScheme.primary,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Flexible(
+                                            child: Text(
+                                              offer.location,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                color: theme.colorScheme
+                                                    .onSurfaceVariant,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ),
+                                          if (isOwnProfile) ...[
+                                            const SizedBox(width: 4),
+                                            IconButton(
+                                              icon: const Icon(Icons.edit_outlined, size: 16),
+                                              padding: EdgeInsets.zero,
+                                              constraints: const BoxConstraints(),
+                                              tooltip: 'Edit Space',
+                                              onPressed: () {
+                                                Navigator.of(context).push(
+                                                  MaterialPageRoute(
+                                                    builder: (_) => ListingEditorScreen(
+                                                      initialListing: offer,
+                                                      initialIsRequest: false,
+                                                    ),
+                                                  ),
+                                                );
+                                              },
+                                            ),
+                                          ],
+                                        ],
                                       ),
-                                      child: Text(
-                                        hostingOffer.isActive
-                                            ? 'Accepting Guests'
-                                            : 'Inactive',
-                                        style: TextStyle(
-                                          color: hostingOffer.isActive
-                                              ? AppTheme.positiveGreen
-                                              : Colors.grey,
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        offer.title,
+                                        style: theme.textTheme.titleMedium
+                                            ?.copyWith(
                                           fontWeight: FontWeight.bold,
-                                          fontSize: 11,
                                         ),
                                       ),
-                                    ),
-                                    const Spacer(),
-                                    Icon(
-                                      Icons.location_on_outlined,
-                                      size: 14,
-                                      color: theme.colorScheme.primary,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      hostingOffer.location,
-                                      style: TextStyle(
-                                        color:
-                                            theme.colorScheme.onSurfaceVariant,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  hostingOffer.title,
-                                  style: theme.textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                if (hostingOffer.isDateConstrained) ...[
-                                  const SizedBox(height: 4),
-                                  Row(
-                                    children: [
-                                      Icon(Icons.calendar_today_rounded,
-                                          size: 12,
-                                          color: theme.colorScheme.primary),
-                                      const SizedBox(width: 4),
+                                      if (offer.isDateConstrained) ...[
+                                        const SizedBox(height: 4),
+                                        Row(
+                                          children: [
+                                            Icon(Icons.calendar_today_rounded,
+                                                size: 12,
+                                                color:
+                                                    theme.colorScheme.primary),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              DateFormatter.formatDateRange(
+                                                  offer.startDate,
+                                                  offer.endDate),
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                                color:
+                                                    theme.colorScheme.primary,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                      const SizedBox(height: 4),
                                       Text(
-                                        DateFormatter.formatDateRange(
-                                            hostingOffer.startDate,
-                                            hostingOffer.endDate),
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                          color: theme.colorScheme.primary,
+                                        offer.summary,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: theme.textTheme.bodyMedium
+                                            ?.copyWith(
+                                          color: theme
+                                              .colorScheme.onSurfaceVariant,
                                         ),
                                       ),
                                     ],
                                   ),
-                                ],
-                                const SizedBox(height: 4),
-                                Text(
-                                  hostingOffer.summary,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: theme.textTheme.bodyMedium?.copyWith(
-                                    color: theme.colorScheme.onSurfaceVariant,
-                                  ),
                                 ),
-                              ],
+                              ),
                             ),
-                          ),
-                        ),
-                      )
-                    else
+                          )),
+                    ] else
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 8.0),
                         child: Text(

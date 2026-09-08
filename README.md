@@ -49,10 +49,12 @@ Formal NIP proposals and reference documents for developers building interoperab
 
 Hospitality listings are published as parameterized addressable events (`kind: 30402`) following the **NIP-99 Classified Listings** specification. The protocol supports both **Hosting Offers** (hosts opening their homes) and **Stay Requests** (travelers seeking accommodation for specific dates).
 
-#### Classification Topics
+#### Classification Topics & Listing Identifiers (`d` tag)
 Listings declare their intent using standard Nostr topic tags:
 - **Hosting Offer**: `["t", "hospitality"]`, `["t", "hospitality-offer"]`, `["t", "Home"]`
 - **Stay Request**: `["t", "hospitality"]`, `["t", "hospitality-request"]`
+
+*Listing Slug (`d` tag) & Multi-Listing Support*: The `d` tag specifies a unique listing identifier (e.g. `["d", "home-seattle-c23nb"]`, `["d", "home-cabin-tahoe"]`, or `["d", "trip-chicago-20261102"]`). Authors may publish and maintain multiple independent spaces across multiple locations. Consuming clients treat `d` as an opaque unique identifier.
 
 *Absence Fallback Rule*: If a listing is tagged with `["t", "hospitality"]` but omits both `hospitality-offer` and `hospitality-request`, clients **MUST** treat it as a **Hosting Offer** (`isOffer = true`), preserving backward compatibility with legacy listings.
 
@@ -161,7 +163,7 @@ References are **regular, historical Nostr events** (not addressable or replacea
     ["t", "communicative"],
     ["t", "clean"],
     ["t", "great_cook"],
-    ["a", "30402:79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798:79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798-home"]
+    ["a", "30402:79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798:home-seattle-c23nb"]
   ]
 }
 ```

@@ -285,5 +285,39 @@ void main() {
       final gTags7 = event7.tags.where((t) => t.isNotEmpty && t[0] == 'g').map((t) => t[1]).toList();
       expect(gTags7, ['c', 'c2', 'c23', 'c23n', 'c23nb']);
     });
+
+    test('Listing Slug (d tag) supports unique multi-listing slugs and legacy author-home formats', () {
+      final multiListingSlugs = [
+        'home-seattle-c23nb',
+        'home-tahoe-cabin-4b2a',
+        'trip-chicago-20261102',
+        '$authorHex-home',
+        'default',
+      ];
+
+      for (final slug in multiListingSlugs) {
+        final listing = HospitalityListing(
+          eventId: 'evt-$slug',
+          authorPubkey: authorHex,
+          dTag: slug,
+          title: 'Listing $slug',
+          summary: 'Summary for $slug',
+          content: 'Detailed description for $slug',
+          location: 'Anywhere',
+          publishedAt: DateTime.now(),
+          createdAt: DateTime.now(),
+        );
+
+        expect(listing.addressCoordinate, '${NostrConstants.classifiedListingKind}:$authorHex:$slug');
+
+        final nip01 = listing.toNip01Event(authorPubkey: authorHex);
+        final dTag = nip01.tags.firstWhere((t) => t.isNotEmpty && t[0] == 'd');
+        expect(dTag[1], slug);
+
+        final parsed = HospitalityListing.fromNip01Event(nip01);
+        expect(parsed, isNotNull);
+        expect(parsed!.dTag, slug);
+      }
+    });
   });
 }

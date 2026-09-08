@@ -487,7 +487,7 @@ class _AboutPageState extends State<AboutPage>
             contentDesc:
                 'The content field contains the detailed description of the space or trip itinerary, hosting/travel philosophy, expectations, and logistics.',
             tags: [
-              '`d` (REQUIRED) - Addressable listing identifier (e.g. `<pubkey>-home` for offers, `trip-<destination>-<date>` for requests)',
+              '`d` (REQUIRED) - Addressable listing identifier unique slug (e.g. `home-<city>-<id>` for offers, `trip-<destination>-<date>` for requests). Allows hosts to maintain multiple distinct listings across locations.',
               '`title` (REQUIRED) - Human-readable title of the hosting offer or travel request',
               '`summary` (OPTIONAL) - Short preview text for cards and search feeds',
               '`location` (REQUIRED) - Human-readable location display name (e.g. "Seattle, WA, USA")',

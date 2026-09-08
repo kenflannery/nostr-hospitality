@@ -1594,9 +1594,19 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
             .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
             .replaceAll(RegExp(r'^-|-$'), '');
         final nowSec = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-        dTag = 'trip-$locSlug-$nowSec';
+        final cleanLoc = locSlug.isEmpty ? 'trip' : locSlug;
+        dTag = 'trip-$cleanLoc-$nowSec';
       } else {
-        dTag = '$myPubkey-home';
+        final locSlug = effectiveLocation
+            .toLowerCase()
+            .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
+            .replaceAll(RegExp(r'^-|-$'), '');
+        final cleanLoc = locSlug.isEmpty ? 'space' : locSlug;
+        // Use millis suffix modulo 0xffff hex for a clean 4-char unique slug
+        final shortHex = (DateTime.now().millisecondsSinceEpoch % 65536)
+            .toRadixString(16)
+            .padLeft(4, '0');
+        dTag = 'home-$cleanLoc-$shortHex';
       }
 
       final draft = HospitalityListing(

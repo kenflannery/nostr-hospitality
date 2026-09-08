@@ -36,6 +36,18 @@ If a `30402` listing includes `["t", "hospitality"]` but omits both `hospitality
 
 ---
 
+## Listing Identifiers (`d` tag) & Multi-Listing Support
+
+Kind 30402 parameterized replaceable events derive their coordinate as `30402:<pubkey>:<d-tag>`.
+
+The `d` tag is an arbitrary unique listing slug chosen by the publishing client. This enables hosts to publish and maintain **multiple independent spaces** (e.g. a primary residence, a secondary country cabin, a seasonal rental, or separate listings after relocating to a new city):
+
+- **Unique Slugs**: Clients SHOULD generate human-readable, slugified identifiers to distinguish spaces while avoiding collisions (e.g. `["d", "home-seattle-c23nb"]`, `["d", "home-cabin-tahoe"]`, or `["d", "trip-chicago-20261102"]`).
+- **Client Flexibility**: Consuming clients **MUST** treat the `d` tag as an opaque unique identifier string. Clients should not strictly mandate or reject any specific naming scheme.
+- **Backwards Compatibility**: Early prototypes using `["d", "<pubkey>-home"]` or `["d", "home"]` MUST continue to be read, parsed, and updated without requiring forced migration.
+
+---
+
 ## Temporal Date Tags (`start` / `end`)
 
 To support time-bound travel plans and temporary hosting availability windows without deleting historical records:
@@ -110,7 +122,7 @@ All boolean and categorical preference tags follow **strict tri-state nullabilit
   "pubkey": "<host-pubkey-hex>",
   "content": "Cozy spare bedroom in central Seattle. Close to light rail, coffee shops, and parks. Always happy to share local travel tips!",
   "tags": [
-    ["d", "<host-pubkey>-home"],
+    ["d", "home-seattle-c23nb"],
     ["title", "Cozy Guest Room in Seattle"],
     ["summary", "Private room for 1-2 travelers near transit."],
     ["location", "Seattle, Washington, United States"],
