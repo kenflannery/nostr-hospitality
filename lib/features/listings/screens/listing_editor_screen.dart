@@ -54,8 +54,8 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
   final List<String> _images = [];
 
   int _geohashPrecision = 5;
-  String _currentLocationName = 'Seattle, WA, USA';
-  String _currentGeohash = 'c23nb';
+  String _currentLocationName = '';
+  String _currentGeohash = '';
   LatLng _currentCenter = const LatLng(47.6062, -122.3321);
 
   List<CitySearchResult> _citySuggestions = [];
@@ -136,14 +136,63 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
             _currentCenter.latitude, _currentCenter.longitude,
             precision: _geohashPrecision);
       }
+      _locationSearchController =
+          TextEditingController(text: _currentLocationName);
     } else {
-      _currentGeohash = GeohashHelper.encode(
-          _currentCenter.latitude, _currentCenter.longitude,
-          precision: _geohashPrecision);
+      _locationSearchController = TextEditingController(text: '');
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _initDefaultLocationFromProfile();
+      });
     }
+  }
 
-    _locationSearchController =
-        TextEditingController(text: _currentLocationName);
+  Future<void> _initDefaultLocationFromProfile() async {
+    final authState = ref.read(authStateProvider).valueOrNull;
+    final pubkey = authState?.pubkey;
+    if (pubkey == null) return;
+
+    try {
+      final travelProfile =
+          await ref.read(profileRepositoryProvider).getTravelProfile(pubkey);
+      if (!mounted || widget.initialListing != null) return;
+      if (travelProfile != null) {
+        final profileLoc = !_isRequest
+            ? (travelProfile.formattedHome ?? travelProfile.formattedCurrent)
+            : (travelProfile.formattedCurrent ?? travelProfile.formattedHome);
+
+        if (profileLoc != null && profileLoc.isNotEmpty) {
+          if (travelProfile.geohashes.isNotEmpty) {
+            final decoded =
+                GeohashHelper.decode(travelProfile.geohashes.first);
+            if (decoded != null) {
+              setState(() {
+                _currentLocationName = profileLoc;
+                _locationSearchController.text = profileLoc;
+                _currentCenter = LatLng(decoded.latitude, decoded.longitude);
+                _currentGeohash = GeohashHelper.encode(
+                  decoded.latitude,
+                  decoded.longitude,
+                  precision: _geohashPrecision,
+                );
+              });
+              _mapController.move(_currentCenter, 11.5);
+              return;
+            }
+          }
+
+          final results = await GeohashHelper.searchCities(profileLoc);
+          if (!mounted) return;
+          if (results.isNotEmpty) {
+            _selectCity(results.first);
+          } else {
+            setState(() {
+              _currentLocationName = profileLoc;
+              _locationSearchController.text = profileLoc;
+            });
+          }
+        }
+      }
+    } catch (_) {}
   }
 
   @override
@@ -266,7 +315,12 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
   }
 
   void _onCitySearchChanged(String query) async {
-    if (query.trim().isEmpty) {
+    final clean = query.trim();
+    setState(() {
+      _currentLocationName = query;
+    });
+
+    if (clean.isEmpty) {
       setState(() {
         _citySuggestions = [];
         _isSearchingCities = false;
@@ -275,12 +329,35 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
     }
 
     setState(() => _isSearchingCities = true);
-    final results = await GeohashHelper.searchCities(query);
-    if (mounted) {
+    final results = await GeohashHelper.searchCities(clean);
+    if (mounted && _locationSearchController.text.trim() == clean) {
       setState(() {
         _citySuggestions = results;
         _isSearchingCities = false;
       });
+    }
+  }
+
+  void _onCitySearchSubmitted(String query) async {
+    final clean = query.trim();
+    if (clean.isEmpty) return;
+
+    if (_citySuggestions.isNotEmpty) {
+      _selectCity(_citySuggestions.first);
+      return;
+    }
+
+    setState(() => _isSearchingCities = true);
+    final results = await GeohashHelper.searchCities(clean);
+    if (mounted) {
+      setState(() => _isSearchingCities = false);
+      if (results.isNotEmpty) {
+        _selectCity(results.first);
+      } else {
+        setState(() {
+          _currentLocationName = clean;
+        });
+      }
     }
   }
 
@@ -292,13 +369,18 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
       _currentGeohash = GeohashHelper.encode(city.latitude, city.longitude,
           precision: _geohashPrecision);
       _citySuggestions = [];
+      if (_isRequest &&
+          (_titleController.text.isEmpty ||
+              _titleController.text.startsWith('Looking for a host in '))) {
+        _titleController.text = 'Looking for a host in ${city.displayName}';
+      }
     });
 
     final zoom = _geohashPrecision == 5 ? 11.5 : (_geohashPrecision == 4 ? 10.0 : 8.0);
     _mapController.move(_currentCenter, zoom);
   }
 
-  void _onMapTapped(LatLng point) {
+  void _onMapTapped(LatLng point) async {
     final geohash = GeohashHelper.encode(point.latitude, point.longitude,
         precision: _geohashPrecision);
     final decoded = GeohashHelper.decode(geohash);
@@ -310,20 +392,41 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
       } else {
         _currentCenter = point;
       }
+      _isSearchingCities = true;
     });
+
+    final reverseName = await GeohashHelper.reverseGeocode(
+      _currentCenter.latitude,
+      _currentCenter.longitude,
+    );
+
+    if (mounted && _currentGeohash == geohash) {
+      setState(() {
+        _isSearchingCities = false;
+        _currentLocationName = reverseName;
+        _locationSearchController.text = reverseName;
+        if (_isRequest &&
+            (_titleController.text.isEmpty ||
+                _titleController.text.startsWith('Looking for a host in '))) {
+          _titleController.text = 'Looking for a host in $reverseName';
+        }
+      });
+    }
   }
 
   void _updateGeohashPrecision(int newPrecision) {
     setState(() {
       _geohashPrecision = newPrecision;
-      _currentGeohash = GeohashHelper.encode(
-        _currentCenter.latitude,
-        _currentCenter.longitude,
-        precision: _geohashPrecision,
-      );
-      final decoded = GeohashHelper.decode(_currentGeohash);
-      if (decoded != null) {
-        _currentCenter = LatLng(decoded.latitude, decoded.longitude);
+      if (_currentGeohash.isNotEmpty) {
+        _currentGeohash = GeohashHelper.encode(
+          _currentCenter.latitude,
+          _currentCenter.longitude,
+          precision: _geohashPrecision,
+        );
+        final decoded = GeohashHelper.decode(_currentGeohash);
+        if (decoded != null) {
+          _currentCenter = LatLng(decoded.latitude, decoded.longitude);
+        }
       }
     });
   }
@@ -401,7 +504,9 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
                 onSelectionChanged: (set) {
                   setState(() {
                     _isRequest = set.first;
-                    if (_isRequest && _titleController.text.isEmpty) {
+                    if (_isRequest &&
+                        _titleController.text.isEmpty &&
+                        _currentLocationName.isNotEmpty) {
                       _titleController.text =
                           'Looking for a host in $_currentLocationName';
                     }
@@ -594,6 +699,7 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
                                 : null,
                           ),
                           onChanged: _onCitySearchChanged,
+                          onSubmitted: _onCitySearchSubmitted,
                         ),
 
                         // City Suggestions Dropdown
@@ -669,38 +775,39 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
                               ),
 
                             // Center Marker
-                            MarkerLayer(
-                              markers: [
-                                Marker(
-                                  point: _currentCenter,
-                                  width: 44,
-                                  height: 44,
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      color: theme.colorScheme.primary,
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                          color: Colors.white, width: 2.5),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black
-                                              .withValues(alpha: 0.3),
-                                          blurRadius: 6,
-                                          offset: const Offset(0, 2),
-                                        ),
-                                      ],
-                                    ),
-                                    child: Icon(
-                                      _isRequest
-                                          ? Icons.luggage_rounded
-                                          : Icons.roofing_rounded,
-                                      color: Colors.white,
-                                      size: 22,
+                            if (_currentGeohash.isNotEmpty)
+                              MarkerLayer(
+                                markers: [
+                                  Marker(
+                                    point: _currentCenter,
+                                    width: 44,
+                                    height: 44,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: theme.colorScheme.primary,
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                            color: Colors.white, width: 2.5),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black
+                                                .withValues(alpha: 0.3),
+                                            blurRadius: 6,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Icon(
+                                        _isRequest
+                                            ? Icons.luggage_rounded
+                                            : Icons.roofing_rounded,
+                                        color: Colors.white,
+                                        size: 22,
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ],
-                            ),
+                                ],
+                              ),
                           ],
                         ),
                       ],
@@ -721,7 +828,9 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                'Selected Zone: $_currentLocationName',
+                                _currentLocationName.isNotEmpty
+                                    ? 'Selected Zone: $_currentLocationName'
+                                    : 'Tap map or search city above to set zone',
                                 style: const TextStyle(
                                     fontWeight: FontWeight.bold, fontSize: 13),
                               ),
@@ -1441,11 +1550,46 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
       final myPubkey = authState.pubkey!;
       final existing = widget.initialListing;
 
+      final enteredLocation = _locationSearchController.text.trim();
+      final effectiveLocation = enteredLocation.isNotEmpty
+          ? enteredLocation
+          : _currentLocationName.trim();
+
+      if (effectiveLocation.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+                'Please specify a location or tap the map to choose your zone'),
+          ),
+        );
+        setState(() => _isSaving = false);
+        return;
+      }
+
+      if (_currentGeohash.isEmpty) {
+        final cities = await GeohashHelper.searchCities(effectiveLocation);
+        if (cities.isNotEmpty) {
+          final best = cities.first;
+          _currentCenter = LatLng(best.latitude, best.longitude);
+          _currentGeohash = GeohashHelper.encode(
+            best.latitude,
+            best.longitude,
+            precision: _geohashPrecision,
+          );
+        } else {
+          _currentGeohash = GeohashHelper.encode(
+            _currentCenter.latitude,
+            _currentCenter.longitude,
+            precision: _geohashPrecision,
+          );
+        }
+      }
+
       final String dTag;
       if (existing != null) {
         dTag = existing.dTag;
       } else if (_isRequest) {
-        final locSlug = _currentLocationName
+        final locSlug = effectiveLocation
             .toLowerCase()
             .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
             .replaceAll(RegExp(r'^-|-$'), '');
@@ -1462,7 +1606,7 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
         title: _titleController.text.trim(),
         summary: _summaryController.text.trim(),
         content: _contentController.text.trim(),
-        location: _currentLocationName,
+        location: effectiveLocation,
         geohash: _currentGeohash,
         originLat: _currentCenter.latitude,
         originLon: _currentCenter.longitude,

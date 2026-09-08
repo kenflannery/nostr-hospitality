@@ -40,5 +40,26 @@ void main() {
       final decoded = GeohashHelper.decode('invalid_a#');
       expect(decoded, isNull);
     });
+
+    test('reverseGeocode returns accurate location for known offline cities', () async {
+      final seattle = await GeohashHelper.reverseGeocode(47.6062, -122.3321);
+      expect(seattle, 'Seattle, WA, USA');
+
+      final paris = await GeohashHelper.reverseGeocode(48.8566, 2.3522);
+      expect(paris, 'Paris, France');
+
+      final tokyo = await GeohashHelper.reverseGeocode(35.6762, 139.6503);
+      expect(tokyo, 'Tokyo, Japan');
+    });
+
+    test('reverseGeocode handles nearby coordinates or falls back gracefully', () async {
+      // Point close to Austin, TX
+      final nearAustin = await GeohashHelper.reverseGeocode(30.27, -97.74);
+      expect(nearAustin, contains('Austin'));
+
+      // Far remote ocean coordinates (lat: -60, lon: -150)
+      final remote = await GeohashHelper.reverseGeocode(-60.0, -150.0);
+      expect(remote, startsWith('Zone '));
+    });
   });
 }

@@ -230,6 +230,91 @@ class GeohashHelper {
     return results;
   }
 
+  /// Reverse geocodes coordinates (lat, lon) to a human-readable city/region name.
+  /// Checks local offline cities first, then queries OpenStreetMap Nominatim,
+  /// and falls back gracefully to closest known city or geohash zone.
+  static Future<String> reverseGeocode(double latitude, double longitude) async {
+    // 1. Check if very close to a default offline location (< ~15 km, 0.15 deg)
+    for (final entry in defaultLocations.entries) {
+      final dLat = (entry.value.lat - latitude).abs();
+      final dLon = (entry.value.lon - longitude).abs();
+      if (dLat < 0.15 && dLon < 0.15) {
+        return entry.key;
+      }
+    }
+
+    // 2. Attempt online OpenStreetMap Nominatim reverse geocoding
+    try {
+      final uri = Uri.https('nominatim.openstreetmap.org', '/reverse', {
+        'lat': latitude.toString(),
+        'lon': longitude.toString(),
+        'format': 'json',
+        'zoom': '10',
+        'addressdetails': '1',
+      });
+
+      final response = await http.get(
+        uri,
+        headers: {'User-Agent': 'nostr-hospitality-app/1.0 (contact@nostrhospitality.org)'},
+      ).timeout(const Duration(seconds: 3));
+
+      if (response.statusCode == 200) {
+        final dynamic data = jsonDecode(response.body);
+        if (data is Map<String, dynamic>) {
+          final address = data['address'] as Map<String, dynamic>?;
+          if (address != null) {
+            final city = address['city'] ??
+                address['town'] ??
+                address['village'] ??
+                address['municipality'] ??
+                address['hamlet'] ??
+                address['suburb'] ??
+                address['county'];
+            final state = address['state'] ?? address['province'] ?? address['region'];
+            final country = address['country'];
+
+            if (city != null && country != null) {
+              if (state != null && state != city) {
+                return '$city, $state, $country';
+              }
+              return '$city, $country';
+            }
+          }
+
+          final displayName = data['display_name']?.toString();
+          if (displayName != null && displayName.isNotEmpty) {
+            final parts = displayName.split(',').map((s) => s.trim()).toList();
+            return parts.length > 2 ? '${parts[0]}, ${parts[1]}, ${parts.last}' : displayName;
+          }
+        }
+      }
+    } catch (_) {
+      // Offline fallback
+    }
+
+    // 3. Fallback: find nearest known location from defaultLocations
+    double minDistanceSquared = double.infinity;
+    String? nearestCity;
+    for (final entry in defaultLocations.entries) {
+      final dLat = entry.value.lat - latitude;
+      final dLon = entry.value.lon - longitude;
+      final distSquared = dLat * dLat + dLon * dLon;
+      if (distSquared < minDistanceSquared) {
+        minDistanceSquared = distSquared;
+        nearestCity = entry.key;
+      }
+    }
+
+    // If within ~150km (approx 2.0 degrees squared), return "Near <City>"
+    if (nearestCity != null && minDistanceSquared < 2.0) {
+      return 'Near $nearestCity';
+    }
+
+    // 4. Return geohash zone representation as a last resort
+    final g = encode(latitude, longitude, precision: 5);
+    return 'Zone $g';
+  }
+
   /// Sample known city coordinates for offline fallback and quick suggestions.
   static const Map<String, ({double lat, double lon, String geohash})> defaultLocations = {
     'Seattle, WA, USA': (lat: 47.6062, lon: -122.3321, geohash: 'c23nb'),
