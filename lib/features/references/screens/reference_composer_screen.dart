@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/nostr_constants.dart';
+import '../../../core/navigation/app_router.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../models/hospitality_listing.dart';
@@ -165,6 +166,15 @@ class _ReferenceComposerScreenState
     return Scaffold(
       appBar: AppBar(
         title: Text('Leave Reference for $subjectDisplay'),
+        leading: BackButton(
+          onPressed: () {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            } else {
+              AppRouter.toProfile(context, widget.subjectPubkey);
+            }
+          },
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20.0),
@@ -600,7 +610,11 @@ class _ReferenceComposerScreenState
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Reference published to Nostr relays!')),
         );
-        Navigator.of(context).pop(true);
+        if (Navigator.of(context).canPop()) {
+          Navigator.of(context).pop(true);
+        } else {
+          AppRouter.toProfile(context, widget.subjectPubkey);
+        }
       }
     } catch (e) {
       if (mounted) {

@@ -1,24 +1,31 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/date_formatter.dart';
+import '../../../core/utils/nip19_utils.dart';
 import '../../../models/hospitality_listing.dart';
 import '../../../widgets/raw_event_viewer_dialog.dart';
 import '../../../widgets/user_avatar.dart';
-import '../../messaging/screens/chat_screen.dart';
-import '../../profile/screens/profile_screen.dart';
-import '../../references/screens/reference_composer_screen.dart';
-import 'listing_editor_screen.dart';
+import '../../../core/navigation/app_router.dart';
 
-/// Detailed view of a NIP-99 (Kind 30402) Hospitality Hosting Offer.
+/// Detailed view of a NIP-99 (Kind 30402) Hospitality Hosting Offer or Stay Request.
 class ListingDetailScreen extends ConsumerWidget {
-  final HospitalityListing listing;
+  final HospitalityListing? initialListing;
+  final String? authorPubkey;
+  final String? dTag;
+  final String? coordinate;
 
   const ListingDetailScreen({
     super.key,
-    required this.listing,
-  });
+    HospitalityListing? listing,
+    HospitalityListing? initialListing,
+    this.authorPubkey,
+    this.dTag,
+    this.coordinate,
+  }) : initialListing = listing ?? initialListing;
 
   String _formatSleepingArrangement(String type) {
     switch (type) {
@@ -52,29 +59,104 @@ class ListingDetailScreen extends ConsumerWidget {
     }
   }
 
-  bool _hasAnyHostingPreferences() {
-    return listing.hostsWithChildren != null ||
-        listing.hostsWithPets != null ||
-        listing.okayWithDrinking != null ||
-        listing.okayWithSmoking != null ||
-        listing.acceptLastMinute != null ||
-        listing.wheelchairAccessible != null ||
-        listing.tentCampingAvailable != null;
+  bool _hasAnyHostingPreferences(HospitalityListing l) {
+    return l.hostsWithChildren != null ||
+        l.hostsWithPets != null ||
+        l.okayWithDrinking != null ||
+        l.okayWithSmoking != null ||
+        l.acceptLastMinute != null ||
+        l.wheelchairAccessible != null ||
+        l.tentCampingAvailable != null;
   }
 
-  bool _hasAnyHomeDetails() {
-    return listing.parking != null ||
-        (listing.parkingDetails != null && listing.parkingDetails!.isNotEmpty) ||
-        listing.hasHousemates != null ||
-        listing.hasKids != null ||
-        listing.hasPets != null ||
-        listing.drinksAtHome != null ||
-        listing.smokesAtHome != null;
+  bool _hasAnyHomeDetails(HospitalityListing l) {
+    return l.parking != null ||
+        (l.parkingDetails != null && l.parkingDetails!.isNotEmpty) ||
+        l.hasHousemates != null ||
+        l.hasKids != null ||
+        l.hasPets != null ||
+        l.drinksAtHome != null ||
+        l.smokesAtHome != null;
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+
+    HospitalityListing? activeListing = initialListing;
+    if (activeListing == null) {
+      if (authorPubkey != null && dTag != null) {
+        final decodedAuthor = Nip19Helper.decodePubkey(authorPubkey!);
+        final asyncVal = ref.watch(
+          listingByAuthorAndDTagProvider((author: decodedAuthor, dTag: dTag!)),
+        );
+        if (asyncVal.isLoading) {
+          return Scaffold(
+            appBar: AppBar(title: const Text('Loading Listing...')),
+            body: const Center(child: CircularProgressIndicator()),
+          );
+        }
+        activeListing = asyncVal.valueOrNull;
+      } else if (coordinate != null) {
+        final asyncVal = ref.watch(listingByCoordinateProvider(coordinate!));
+        if (asyncVal.isLoading) {
+          return Scaffold(
+            appBar: AppBar(title: const Text('Loading Listing...')),
+            body: const Center(child: CircularProgressIndicator()),
+          );
+        }
+        activeListing = asyncVal.valueOrNull;
+      }
+    }
+
+    if (activeListing == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Listing Not Found')),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.travel_explore_rounded,
+                  size: 64,
+                  color: theme.colorScheme.outline,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Listing Not Found',
+                  style: theme.textTheme.titleLarge
+                      ?.copyWith(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'The requested hospitality listing could not be found on connected relays.',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                FilledButton.icon(
+                  onPressed: () {
+                    if (Navigator.of(context).canPop()) {
+                      Navigator.of(context).pop();
+                    } else {
+                      context.go('/discover');
+                    }
+                  },
+                  icon: const Icon(Icons.arrow_back_rounded),
+                  label: const Text('Back to Discover'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    final HospitalityListing listing = activeListing;
     final authState = ref.watch(authStateProvider).valueOrNull;
     final isOwnListing = authState?.pubkey == listing.authorPubkey;
 
@@ -154,7 +236,35 @@ class ListingDetailScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text(listing.isRequest ? 'Travel Stay Request' : 'Accommodation Offer'),
+        leading: BackButton(
+          onPressed: () {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            } else {
+              context.go(listing.isRequest ? '/requests' : '/offers');
+            }
+          },
+        ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.share_outlined),
+            tooltip: 'Share / Copy Listing Link',
+            onPressed: () {
+              final authorNpub = Nip19Helper.pubkeyToNpub(listing.authorPubkey);
+              final prefix = listing.isRequest ? '/requests' : '/offers';
+              final path = '$prefix/$authorNpub/${listing.dTag}';
+              final fullUrl = Uri.base.hasAuthority && Uri.base.host.isNotEmpty
+                  ? '${Uri.base.scheme}://${Uri.base.host}${Uri.base.hasPort ? ':${Uri.base.port}' : ''}$path'
+                  : path;
+              Clipboard.setData(ClipboardData(text: fullUrl));
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Listing link copied: $fullUrl'),
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.code_rounded),
             tooltip: 'View Raw Event (Kind 30402)',
@@ -169,13 +279,7 @@ class ListingDetailScreen extends ConsumerWidget {
             IconButton(
               icon: const Icon(Icons.edit_outlined),
               tooltip: listing.isRequest ? 'Edit Request' : 'Edit Offer',
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => ListingEditorScreen(initialListing: listing),
-                  ),
-                );
-              },
+              onPressed: () => AppRouter.toEditListing(context, listing),
             ),
         ],
       ),
@@ -338,13 +442,7 @@ class ListingDetailScreen extends ConsumerWidget {
 
                   // Host Profile Card
                   InkWell(
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => ProfileScreen(pubkey: listing.authorPubkey),
-                        ),
-                      );
-                    },
+                    onTap: () => AppRouter.toProfile(context, listing.authorPubkey),
                     borderRadius: BorderRadius.circular(16),
                     child: Container(
                       padding: const EdgeInsets.all(16),
@@ -428,33 +526,23 @@ class ListingDetailScreen extends ConsumerWidget {
                       children: [
                         Expanded(
                           child: FilledButton.icon(
-                            onPressed: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => ChatScreen(
-                                    recipientPubkey: listing.authorPubkey,
-                                    recipientName: hostName,
-                                  ),
-                                ),
-                              );
-                            },
+                            onPressed: () => AppRouter.toChat(
+                              context,
+                              listing.authorPubkey,
+                              name: hostName,
+                            ),
                             icon: Icon(listing.isRequest ? Icons.handshake_outlined : Icons.mail_outline_rounded),
                             label: Text(listing.isRequest ? 'Offer to Host' : 'Request to Stay'),
                           ),
                         ),
                         const SizedBox(width: 12),
                         OutlinedButton.icon(
-                          onPressed: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => ReferenceComposerScreen(
-                                  subjectPubkey: listing.authorPubkey,
-                                  subjectName: hostName,
-                                  initialListing: listing,
-                                ),
-                              ),
-                            );
-                          },
+                          onPressed: () => AppRouter.toNewReference(
+                            context,
+                            subjectPubkey: listing.authorPubkey,
+                            subjectName: hostName,
+                            initialListing: listing,
+                          ),
                           icon: const Icon(Icons.rate_review_outlined),
                           label: const Text('Reference'),
                         ),
@@ -462,7 +550,7 @@ class ListingDetailScreen extends ConsumerWidget {
                     ),
 
                   // Hosting Preferences / Traveler Needs Section (Rendered only if tags present)
-                  if (_hasAnyHostingPreferences()) ...[
+                  if (_hasAnyHostingPreferences(listing)) ...[
                     const SizedBox(height: 24),
                     const Divider(),
                     const SizedBox(height: 16),
@@ -556,7 +644,7 @@ class ListingDetailScreen extends ConsumerWidget {
                   ],
 
                   // My Home & Environment Section (Rendered only on offers if tags present)
-                  if (listing.isOffer && _hasAnyHomeDetails()) ...[
+                  if (listing.isOffer && _hasAnyHomeDetails(listing)) ...[
                     const SizedBox(height: 24),
                     const Divider(),
                     const SizedBox(height: 16),

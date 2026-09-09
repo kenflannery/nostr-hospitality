@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../models/user_profile.dart';
-import '../../profile/screens/travel_profile_editor_screen.dart';
+import 'package:go_router/go_router.dart';
 
 /// Friendly, educational onboarding flow for travelers new to Nostr and decentralized hospitality.
 class TravelerOnboardingScreen extends ConsumerStatefulWidget {
@@ -82,16 +82,11 @@ class _TravelerOnboardingScreenState extends ConsumerState<TravelerOnboardingScr
   }
 
   void _proceedToProfile() {
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(
-        builder: (_) => const TravelProfileEditorScreen(),
-      ),
-      (route) => route.isFirst,
-    );
+    context.go('/profile/travel-edit');
   }
 
   void _finishAndExplore() {
-    Navigator.of(context).popUntil((route) => route.isFirst);
+    context.go('/discover');
   }
 
   @override
@@ -101,6 +96,15 @@ class _TravelerOnboardingScreenState extends ConsumerState<TravelerOnboardingScr
     return Scaffold(
       appBar: AppBar(
         title: const Text('Create Nostr Passport'),
+        leading: BackButton(
+          onPressed: () {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            } else {
+              context.go('/discover');
+            }
+          },
+        ),
       ),
       body: SafeArea(
         child: SingleChildScrollView(

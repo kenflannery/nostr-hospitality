@@ -2,10 +2,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/nostr/signers/nip07_signer.dart';
 import '../../../core/providers/app_providers.dart';
 import '../widgets/nip46_connect_dialog.dart';
-import 'traveler_onboarding_screen.dart';
+import '../../../core/navigation/app_router.dart';
 
 /// Screen for Nostr authentication supporting NIP-07 (Web Extensions),
 /// NIP-46 (Amber/Remote Bunker), new traveler onboarding, and legacy nsec entry.
@@ -46,6 +47,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
+  void _finishLogin() {
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    } else {
+      context.go('/profile');
+    }
+  }
+
   void _loginWithNip07() async {
     setState(() {
       _isLoading = true;
@@ -58,7 +67,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Connected with browser extension!')),
         );
-        Navigator.of(context).pop();
+        _finishLogin();
       }
     } catch (e) {
       if (mounted) {
@@ -77,7 +86,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
 
     if (connected == true && mounted) {
-      Navigator.of(context).pop();
+      _finishLogin();
     }
   }
 
@@ -99,7 +108,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Authenticated with Nostr keypair!')),
         );
-        Navigator.of(context).pop();
+        _finishLogin();
       }
     } catch (e) {
       if (mounted) {
@@ -118,6 +127,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Nostr Identity'),
+        leading: BackButton(
+          onPressed: () {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            } else {
+              context.go('/discover');
+            }
+          },
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
@@ -241,13 +259,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
               // OPTION 3: Friendly Traveler Onboarding Card
               InkWell(
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const TravelerOnboardingScreen(),
-                    ),
-                  );
-                },
+                onTap: () => AppRouter.toOnboarding(context),
                 borderRadius: BorderRadius.circular(12),
                 child: Container(
                   padding: const EdgeInsets.all(16),

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/theme/app_theme.dart';
@@ -9,15 +11,8 @@ import '../../../models/travel_profile.dart';
 import '../../../models/user_profile.dart';
 import '../../../widgets/raw_event_viewer_dialog.dart';
 import '../../../widgets/user_avatar.dart';
-import '../../auth/screens/login_screen.dart';
-import '../../listings/screens/listing_detail_screen.dart';
-import '../../listings/screens/listing_editor_screen.dart';
-import '../../messaging/screens/chat_screen.dart';
-import '../../references/screens/reference_composer_screen.dart';
 import '../../references/widgets/reference_card.dart';
-import '../../settings/screens/settings_screen.dart';
-import 'edit_profile_screen.dart';
-import 'travel_profile_editor_screen.dart';
+import '../../../core/navigation/app_router.dart';
 
 /// User Profile Screen displaying Kind 0 metadata, Kind 30602 Travel Profile,
 /// Kind 30402 hosting offer, and Kind 7654 references.
@@ -30,8 +25,11 @@ class ProfileScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final authState = ref.watch(authStateProvider).valueOrNull;
-    final isOwnProfile = pubkey == null || pubkey == authState?.pubkey;
-    final targetPubkey = pubkey ?? authState?.pubkey;
+    final resolvedPubkey =
+        pubkey != null ? Nip19Helper.decodePubkey(pubkey!) : null;
+    final targetPubkey = resolvedPubkey ?? authState?.pubkey;
+    final isOwnProfile = pubkey == null ||
+        (targetPubkey != null && targetPubkey == authState?.pubkey);
 
     if (targetPubkey == null ||
         (isOwnProfile && !(authState?.isAuthenticated ?? false))) {
@@ -64,11 +62,7 @@ class ProfileScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 24),
                 FilledButton(
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const LoginScreen()),
-                    );
-                  },
+                  onPressed: () => AppRouter.toLogin(context),
                   child: const Text('Sign In / Generate Keys'),
                 ),
               ],
@@ -114,17 +108,42 @@ class ProfileScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text(isOwnProfile ? 'My Profile' : primaryName),
+        leading: !isOwnProfile
+            ? BackButton(
+                onPressed: () {
+                  if (Navigator.of(context).canPop()) {
+                    Navigator.of(context).pop();
+                  } else {
+                    context.go('/discover');
+                  }
+                },
+              )
+            : null,
         actions: [
           if (isOwnProfile)
             IconButton(
               icon: const Icon(Icons.settings_outlined),
               tooltip: 'Settings & Relays',
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const SettingsScreen()),
-                );
-              },
+              onPressed: () => AppRouter.toSettings(context),
             ),
+          IconButton(
+            icon: const Icon(Icons.share_outlined),
+            tooltip: 'Share / Copy Profile Link',
+            onPressed: () {
+              final npub = profile.npub;
+              final path = '/p/$npub';
+              final fullUrl = Uri.base.hasAuthority && Uri.base.host.isNotEmpty
+                  ? '${Uri.base.scheme}://${Uri.base.host}${Uri.base.hasPort ? ':${Uri.base.port}' : ''}$path'
+                  : path;
+              Clipboard.setData(ClipboardData(text: fullUrl));
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Profile link copied: $fullUrl'),
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            },
+          ),
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert_rounded),
             tooltip: 'More options & Developer data',
@@ -448,14 +467,7 @@ class ProfileScreen extends ConsumerWidget {
                         if (isOwnProfile) ...[
                           Expanded(
                             child: OutlinedButton.icon(
-                              onPressed: () {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => EditProfileScreen(
-                                        currentProfile: profile),
-                                  ),
-                                );
-                              },
+                              onPressed: () => AppRouter.toEditProfile(context),
                               icon: const Icon(Icons.edit_outlined, size: 18),
                               label: const Text('Edit Identity (Kind 0)'),
                             ),
@@ -463,38 +475,27 @@ class ProfileScreen extends ConsumerWidget {
                         ] else ...[
                           Expanded(
                             child: FilledButton.icon(
-                              onPressed: () {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => ChatScreen(
-                                      recipientPubkey: targetPubkey,
-                                      recipientName: primaryName,
-                                    ),
-                                  ),
-                                );
-                              },
+                              onPressed: () => AppRouter.toChat(
+                                context,
+                                targetPubkey,
+                                name: primaryName,
+                              ),
                               icon: const Icon(Icons.mail_outline_rounded,
                                   size: 18),
                               label: const Text('Message'),
                             ),
                           ),
-                          const SizedBox(width: 10),
+                          const SizedBox(width: 12),
                           Expanded(
                             child: OutlinedButton.icon(
-                              onPressed: () {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => ReferenceComposerScreen(
-                                      subjectPubkey: targetPubkey,
-                                      subjectName: primaryName,
-                                      initialListing: listing,
-                                    ),
-                                  ),
-                                );
-                              },
+                              onPressed: () => AppRouter.toNewReference(
+                                context,
+                                subjectPubkey: targetPubkey,
+                                subjectName: primaryName,
+                              ),
                               icon: const Icon(Icons.rate_review_outlined,
                                   size: 18),
-                              label: const Text('Leave Reference'),
+                              label: const Text('Reference'),
                             ),
                           ),
                         ],
@@ -575,14 +576,8 @@ class ProfileScreen extends ConsumerWidget {
                         const Spacer(),
                         if (isOwnProfile)
                           TextButton.icon(
-                            onPressed: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => TravelProfileEditorScreen(
-                                      initialProfile: travelProfile),
-                                ),
-                              );
-                            },
+                            onPressed: () =>
+                                AppRouter.toEditTravelProfile(context),
                             icon: Icon(
                                 travelProfile == null
                                     ? Icons.add_rounded
@@ -621,14 +616,8 @@ class ProfileScreen extends ConsumerWidget {
                               ),
                               const SizedBox(height: 12),
                               FilledButton.tonalIcon(
-                                onPressed: () {
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (_) =>
-                                          const TravelProfileEditorScreen(),
-                                    ),
-                                  );
-                                },
+                                onPressed: () =>
+                                    AppRouter.toEditTravelProfile(context),
                                 icon:
                                     const Icon(Icons.badge_outlined, size: 16),
                                 label: const Text('Complete Travel Profile'),
@@ -670,14 +659,7 @@ class ProfileScreen extends ConsumerWidget {
                         const Spacer(),
                         if (isOwnProfile)
                           TextButton.icon(
-                            onPressed: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => const ListingEditorScreen(
-                                      initialIsRequest: false),
-                                ),
-                              );
-                            },
+                            onPressed: () => AppRouter.toNewOffer(context),
                             icon: const Icon(Icons.add_rounded, size: 16),
                             label: Text(hostingOffers.isEmpty
                                 ? 'Create Offer'
@@ -748,14 +730,7 @@ class ProfileScreen extends ConsumerWidget {
                               margin: EdgeInsets.zero,
                               color: theme.colorScheme.surfaceContainerLow,
                               child: InkWell(
-                                onTap: () {
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (_) =>
-                                          ListingDetailScreen(listing: offer),
-                                    ),
-                                  );
-                                },
+                                onTap: () => AppRouter.toListing(context, offer),
                                 borderRadius: BorderRadius.circular(16),
                                 child: Padding(
                                   padding: const EdgeInsets.all(16.0),
@@ -837,16 +812,7 @@ class ProfileScreen extends ConsumerWidget {
                                               padding: EdgeInsets.zero,
                                               constraints: const BoxConstraints(),
                                               tooltip: 'Edit Space',
-                                              onPressed: () {
-                                                Navigator.of(context).push(
-                                                  MaterialPageRoute(
-                                                    builder: (_) => ListingEditorScreen(
-                                                      initialListing: offer,
-                                                      initialIsRequest: false,
-                                                    ),
-                                                  ),
-                                                );
-                                              },
+                                              onPressed: () => AppRouter.toEditListing(context, offer),
                                             ),
                                           ],
                                         ],
@@ -933,14 +899,7 @@ class ProfileScreen extends ConsumerWidget {
                         const Spacer(),
                         if (isOwnProfile)
                           TextButton.icon(
-                            onPressed: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => const ListingEditorScreen(
-                                      initialIsRequest: true),
-                                ),
-                              );
-                            },
+                            onPressed: () => AppRouter.toNewRequest(context),
                             icon: const Icon(Icons.add, size: 16),
                             label: const Text('Post Request'),
                           ),
@@ -955,14 +914,7 @@ class ProfileScreen extends ConsumerWidget {
                               margin: EdgeInsets.zero,
                               color: theme.colorScheme.surfaceContainerLow,
                               child: InkWell(
-                                onTap: () {
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (_) =>
-                                          ListingDetailScreen(listing: req),
-                                    ),
-                                  );
-                                },
+                                onTap: () => AppRouter.toListing(context, req),
                                 borderRadius: BorderRadius.circular(16),
                                 child: Padding(
                                   padding: const EdgeInsets.all(16.0),
@@ -1096,17 +1048,12 @@ class ProfileScreen extends ConsumerWidget {
                         const Spacer(),
                         if (!isOwnProfile)
                           TextButton.icon(
-                            onPressed: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => ReferenceComposerScreen(
-                                    subjectPubkey: targetPubkey,
-                                    subjectName: primaryName,
-                                    initialListing: listing,
-                                  ),
-                                ),
-                              );
-                            },
+                            onPressed: () => AppRouter.toNewReference(
+                              context,
+                              subjectPubkey: targetPubkey,
+                              subjectName: primaryName,
+                              initialListing: listing,
+                            ),
                             icon: const Icon(Icons.add, size: 16),
                             label: const Text('Add Reference'),
                           ),

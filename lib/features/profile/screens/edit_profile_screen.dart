@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../models/user_profile.dart';
 
 /// Screen to edit standard Nostr Kind 0 user metadata.
 class EditProfileScreen extends ConsumerStatefulWidget {
-  final UserProfile currentProfile;
+  final UserProfile? currentProfile;
 
   const EditProfileScreen({
     super.key,
-    required this.currentProfile,
+    this.currentProfile,
   });
 
   @override
@@ -32,14 +33,15 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   @override
   void initState() {
     super.initState();
-    final p = widget.currentProfile;
-    _nameController = TextEditingController(text: p.name ?? '');
-    _displayNameController = TextEditingController(text: p.displayName ?? '');
-    _aboutController = TextEditingController(text: p.about ?? '');
-    _pictureController = TextEditingController(text: p.picture ?? '');
-    _bannerController = TextEditingController(text: p.banner ?? '');
-    _nip05Controller = TextEditingController(text: p.nip05 ?? '');
-    _websiteController = TextEditingController(text: p.website ?? '');
+    final p = widget.currentProfile ??
+        ref.read(currentUserProfileProvider).valueOrNull;
+    _nameController = TextEditingController(text: p?.name ?? '');
+    _displayNameController = TextEditingController(text: p?.displayName ?? '');
+    _aboutController = TextEditingController(text: p?.about ?? '');
+    _pictureController = TextEditingController(text: p?.picture ?? '');
+    _bannerController = TextEditingController(text: p?.banner ?? '');
+    _nip05Controller = TextEditingController(text: p?.nip05 ?? '');
+    _websiteController = TextEditingController(text: p?.website ?? '');
   }
 
   @override
@@ -61,6 +63,15 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Edit Nostr Profile'),
+        leading: BackButton(
+          onPressed: () {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            } else {
+              context.go('/profile');
+            }
+          },
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20.0),
@@ -225,7 +236,12 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     setState(() => _isSaving = true);
 
     try {
-      final updated = widget.currentProfile.copyWith(
+      final myPubkey = ref.read(authStateProvider).valueOrNull?.pubkey ?? '';
+      final base = widget.currentProfile ??
+          ref.read(currentUserProfileProvider).valueOrNull ??
+          UserProfile(pubkey: myPubkey);
+
+      final updated = base.copyWith(
         name: _nameController.text.trim(),
         displayName: _displayNameController.text.trim(),
         about: _aboutController.text.trim(),
@@ -243,8 +259,12 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           const SnackBar(content: Text('Profile updated on Nostr relays!')),
         );
         ref.invalidate(currentUserProfileProvider);
-        ref.invalidate(userProfileProvider(widget.currentProfile.pubkey));
-        Navigator.of(context).pop(true);
+        ref.invalidate(userProfileProvider(updated.pubkey));
+        if (Navigator.of(context).canPop()) {
+          Navigator.of(context).pop(true);
+        } else {
+          context.go('/profile');
+        }
       }
     } catch (e) {
       if (mounted) {

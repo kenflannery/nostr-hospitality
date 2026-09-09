@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/utils/date_formatter.dart';
+import '../../../core/utils/nip19_utils.dart';
 import '../../../models/chat_message.dart';
 import '../../../widgets/user_avatar.dart';
 
@@ -29,6 +31,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   bool _isLoading = true;
   bool _isSending = false;
 
+  String get _recipientPubkeyHex => Nip19Helper.decodePubkey(widget.recipientPubkey);
+
   @override
   void initState() {
     super.initState();
@@ -44,7 +48,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   void _loadHistory() async {
     final repo = ref.read(messageRepositoryProvider);
-    final history = await repo.loadMessages(widget.recipientPubkey, forceRefresh: true);
+    final history = await repo.loadMessages(_recipientPubkeyHex, forceRefresh: true);
     if (mounted) {
       setState(() {
         _messages = history;
@@ -76,7 +80,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     try {
       final repo = ref.read(messageRepositoryProvider);
       final sent = await repo.sendMessage(
-        recipientPubkey: widget.recipientPubkey,
+        recipientPubkey: _recipientPubkeyHex,
         content: text,
       );
 
@@ -100,12 +104,21 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final profileAsync = ref.watch(userProfileProvider(widget.recipientPubkey));
+    final profileAsync = ref.watch(userProfileProvider(_recipientPubkeyHex));
     final profile = profileAsync.valueOrNull;
     final name = widget.recipientName ?? profile?.bestName ?? 'Traveler';
 
     return Scaffold(
       appBar: AppBar(
+        leading: BackButton(
+          onPressed: () {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            } else {
+              context.go('/messages');
+            }
+          },
+        ),
         titleSpacing: 0,
         title: Row(
           children: [

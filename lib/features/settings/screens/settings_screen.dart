@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/nip19_utils.dart';
-import '../../about/screens/about_page.dart';
-import '../../auth/screens/login_screen.dart';
+import '../../../core/navigation/app_router.dart';
 
 /// Settings and relay management screen.
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -40,6 +40,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Settings & Relays'),
+        leading: BackButton(
+          onPressed: () {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            } else {
+              context.go('/profile');
+            }
+          },
+        ),
       ),
       body: ListView(
         padding: const EdgeInsets.all(20.0),
@@ -140,11 +149,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ] else ...[
             FilledButton.icon(
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const LoginScreen()),
-                );
-              },
+              onPressed: () => AppRouter.toLogin(context),
               icon: const Icon(Icons.login_rounded),
               label: const Text('Sign In or Generate Keypair'),
             ),
@@ -269,11 +274,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             title: const Text('Protocol Specifications & About'),
             subtitle: const Text('Documentation for Kind 7654 references, NIP-99, and NIP-17'),
             trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const AboutPage()),
-              );
-            },
+            onTap: () => AppRouter.toAbout(context),
           ),
           const SizedBox(height: 24),
           const _AppVersionSection(),

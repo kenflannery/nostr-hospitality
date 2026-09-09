@@ -6,8 +6,7 @@ import '../../../core/utils/date_formatter.dart';
 import '../../../models/chat_message.dart';
 import '../../../widgets/empty_state_view.dart';
 import '../../../widgets/user_avatar.dart';
-import '../../auth/screens/login_screen.dart';
-import 'chat_screen.dart';
+import '../../../core/navigation/app_router.dart';
 
 /// Screen listing private NIP-17 conversations.
 class ConversationsScreen extends ConsumerWidget {
@@ -29,11 +28,7 @@ class ConversationsScreen extends ConsumerWidget {
           message:
               'Private NIP-17 messages require authenticating with your Nostr keys.',
           actionLabel: 'Sign In',
-          onAction: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const LoginScreen()),
-            );
-          },
+          onAction: () => AppRouter.toLogin(context),
         ),
       );
     }
@@ -122,17 +117,7 @@ class ConversationsScreen extends ConsumerWidget {
                 return _ConversationTile(
                   conversation: conv,
                   onTap: () {
-                    Navigator.of(context)
-                        .push(
-                      MaterialPageRoute(
-                        builder: (_) => ChatScreen(
-                          recipientPubkey: conv.otherPubkey,
-                        ),
-                      ),
-                    )
-                        .then((_) {
-                      ref.invalidate(conversationsProvider);
-                    });
+                    AppRouter.toChat(context, conv.otherPubkey);
                   },
                 );
               },

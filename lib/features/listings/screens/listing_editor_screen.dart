@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
@@ -462,6 +463,15 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
         title: Text(isEditing
             ? (_isRequest ? 'Edit Travel Request' : 'Edit Hosting Offer')
             : (_isRequest ? 'Post Travel Request' : 'Create Hosting Offer')),
+        leading: BackButton(
+          onPressed: () {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            } else {
+              context.go(_isRequest ? '/requests' : '/offers');
+            }
+          },
+        ),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 8.0),
@@ -1671,7 +1681,11 @@ class _ListingEditorScreenState extends ConsumerState<ListingEditorScreen> {
                     : 'Hosting offer published to Nostr!')),
           ),
         );
-        Navigator.of(context).pop(true);
+        if (Navigator.of(context).canPop()) {
+          Navigator.of(context).pop(true);
+        } else {
+          context.go(_isRequest ? '/requests' : '/offers');
+        }
       }
     } catch (e) {
       if (mounted) {

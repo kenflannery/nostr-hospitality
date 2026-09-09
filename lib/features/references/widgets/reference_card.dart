@@ -7,8 +7,7 @@ import '../../../widgets/raw_event_viewer_dialog.dart';
 import '../../../widgets/role_badge.dart';
 import '../../../widgets/sentiment_badge.dart';
 import '../../../widgets/user_avatar.dart';
-import '../../listings/screens/listing_detail_screen.dart';
-import '../../profile/screens/profile_screen.dart';
+import '../../../core/navigation/app_router.dart';
 
 /// Renders a human-readable card for an [InteractionReference] (Kind 7654).
 class ReferenceCard extends ConsumerWidget {
@@ -48,13 +47,7 @@ class ReferenceCard extends ConsumerWidget {
                   imageUrl: authorProfile?.picture,
                   nameOrPubkey: authorName,
                   radius: 20,
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => ProfileScreen(pubkey: reference.authorPubkey),
-                      ),
-                    );
-                  },
+                  onTap: () => AppRouter.toProfile(context, reference.authorPubkey),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -62,13 +55,7 @@ class ReferenceCard extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       InkWell(
-                        onTap: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => ProfileScreen(pubkey: reference.authorPubkey),
-                            ),
-                          );
-                        },
+                        onTap: () => AppRouter.toProfile(context, reference.authorPubkey),
                         child: Text(
                           authorName,
                           style: theme.textTheme.titleSmall?.copyWith(
@@ -275,11 +262,7 @@ class ReferenceCard extends ConsumerWidget {
     final listing = await repo.getListingByCoordinate(coordinate);
     if (context.mounted) {
       if (listing != null) {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => ListingDetailScreen(listing: listing),
-          ),
-        );
+        AppRouter.toListing(context, listing);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Listing is no longer available on relays')),

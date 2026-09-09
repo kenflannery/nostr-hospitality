@@ -226,6 +226,20 @@ final authorListingProvider =
   return repo.getListingForAuthor(pubkey);
 });
 
+/// Listing fetched by addressable coordinate "30402:pubkey:dTag"
+final listingByCoordinateProvider =
+    FutureProvider.family.autoDispose<HospitalityListing?, String>((ref, coordinate) async {
+  final repo = ref.watch(listingRepositoryProvider);
+  return repo.getListingByCoordinate(coordinate);
+});
+
+/// Listing fetched by author and dTag slug
+final listingByAuthorAndDTagProvider =
+    FutureProvider.family.autoDispose<HospitalityListing?, ({String author, String dTag})>((ref, params) async {
+  final repo = ref.watch(listingRepositoryProvider);
+  return repo.getListingByAuthorAndDTag(params.author, params.dTag);
+});
+
 /// All listings (offers and requests) for a specific author
 final authorListingsStreamProvider =
     StreamProvider.family.autoDispose<List<HospitalityListing>, String>((ref, pubkey) {

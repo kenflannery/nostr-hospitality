@@ -211,17 +211,12 @@ class ListingRepository {
     return offer ?? listings.first;
   }
 
-  /// Fetches a listing by its addressable coordinate "30402:`pubkey`:`d-tag`".
-  Future<HospitalityListing?> getListingByCoordinate(String coordinate) async {
-    final parts = coordinate.split(':');
-    if (parts.length < 3) return null;
-
-    final author = parts[1];
-    final dTag = parts.sublist(2).join(':');
-
+  /// Fetches a listing by author pubkey and dTag slug.
+  Future<HospitalityListing?> getListingByAuthorAndDTag(
+      String authorPubkey, String dTag) async {
     final filter = Filter(
       kinds: [NostrConstants.classifiedListingKind],
-      authors: [author],
+      authors: [authorPubkey],
       dTags: [dTag],
       limit: 1,
     );
@@ -245,7 +240,7 @@ class ListingRepository {
       );
 
       return await completer.future.timeout(
-        const Duration(seconds: 3),
+        const Duration(seconds: 4),
         onTimeout: () {
           sub.cancel();
           return null;
@@ -254,6 +249,55 @@ class ListingRepository {
     } catch (_) {
       return null;
     }
+  }
+
+  /// Fetches a listing by its event ID (hex).
+  Future<HospitalityListing?> getListingById(String eventId) async {
+    final filter = Filter(
+      kinds: [NostrConstants.classifiedListingKind],
+      ids: [eventId],
+      limit: 1,
+    );
+
+    try {
+      final completer = Completer<HospitalityListing?>();
+
+      final sub = _nostrService.queryEvents(filters: [filter]).listen(
+        (event) {
+          final listing = HospitalityListing.fromNip01Event(event);
+          if (listing != null && !completer.isCompleted) {
+            completer.complete(listing);
+          }
+        },
+        onDone: () {
+          if (!completer.isCompleted) completer.complete(null);
+        },
+        onError: (_) {
+          if (!completer.isCompleted) completer.complete(null);
+        },
+      );
+
+      return await completer.future.timeout(
+        const Duration(seconds: 4),
+        onTimeout: () {
+          sub.cancel();
+          return null;
+        },
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Fetches a listing by its addressable coordinate "30402:`pubkey`:`d-tag`".
+  Future<HospitalityListing?> getListingByCoordinate(String coordinate) async {
+    final parts = coordinate.split(':');
+    if (parts.length < 3) return null;
+
+    final author = parts[1];
+    final dTag = parts.sublist(2).join(':');
+
+    return getListingByAuthorAndDTag(author, dTag);
   }
 
   /// Publishes or updates a NIP-99 classified hospitality listing.

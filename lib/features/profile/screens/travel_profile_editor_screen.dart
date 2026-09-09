@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../core/constants/country_constants.dart';
 import '../../../core/providers/app_providers.dart';
@@ -436,7 +437,11 @@ class _TravelProfileEditorScreenState extends ConsumerState<TravelProfileEditorS
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Travel profile published to Nostr relays successfully!')),
         );
-        Navigator.of(context).pop();
+        if (Navigator.of(context).canPop()) {
+          Navigator.of(context).pop();
+        } else {
+          context.go('/profile');
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -459,6 +464,15 @@ class _TravelProfileEditorScreenState extends ConsumerState<TravelProfileEditorS
     return Scaffold(
       appBar: AppBar(
         title: Text(isEditing ? 'Edit Travel Profile' : 'Create Travel Profile'),
+        leading: BackButton(
+          onPressed: () {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            } else {
+              context.go('/profile');
+            }
+          },
+        ),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 8.0),

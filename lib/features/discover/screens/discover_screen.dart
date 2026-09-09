@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/theme/map_tile_config.dart';
@@ -10,14 +11,13 @@ import '../../../models/hospitality_listing.dart';
 import '../../../repositories/listing_repository.dart';
 import '../../../widgets/empty_state_view.dart';
 import '../../../widgets/user_avatar.dart';
-import '../../about/screens/about_page.dart';
-import '../../auth/screens/login_screen.dart';
-import '../../listings/screens/listing_detail_screen.dart';
-import '../../listings/screens/listing_editor_screen.dart';
+import '../../../core/navigation/app_router.dart';
 
 /// Discover screen displaying open hospitality offers across Nostr relays with Map & List views.
 class DiscoverScreen extends ConsumerStatefulWidget {
-  const DiscoverScreen({super.key});
+  final ListingTypeFilter? initialTypeFilter;
+
+  const DiscoverScreen({super.key, this.initialTypeFilter});
 
   @override
   ConsumerState<DiscoverScreen> createState() => _DiscoverScreenState();
@@ -33,6 +33,29 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
 
   List<CitySearchResult> _citySuggestions = [];
   bool _isSearchingCities = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialTypeFilter != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(discoverListingTypeFilterProvider.notifier).state =
+            widget.initialTypeFilter!;
+      });
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant DiscoverScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialTypeFilter != null &&
+        widget.initialTypeFilter != oldWidget.initialTypeFilter) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(discoverListingTypeFilterProvider.notifier).state =
+            widget.initialTypeFilter!;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -99,9 +122,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
 
   void _showCreateListingSheet(BuildContext context, bool isAuthenticated) {
     if (!isAuthenticated) {
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-      );
+      AppRouter.toLogin(context);
       return;
     }
 
@@ -144,11 +165,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                 trailing: const Icon(Icons.chevron_right_rounded),
                 onTap: () {
                   Navigator.of(ctx).pop();
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const ListingEditorScreen(initialIsRequest: false),
-                    ),
-                  );
+                  AppRouter.toNewOffer(context);
                 },
               ),
               const SizedBox(height: 12),
@@ -168,11 +185,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                 trailing: const Icon(Icons.chevron_right_rounded),
                 onTap: () {
                   Navigator.of(ctx).pop();
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const ListingEditorScreen(initialIsRequest: true),
-                    ),
-                  );
+                  AppRouter.toNewRequest(context);
                 },
               ),
             ],
@@ -252,11 +265,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
           IconButton(
             icon: const Icon(Icons.info_outline_rounded, color: Colors.white),
             tooltip: 'Nostr Protocol Specs',
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const AboutPage()),
-              );
-            },
+            onPressed: () => AppRouter.toAbout(context),
           ),
         ],
       ),
@@ -394,8 +403,20 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                                 ],
                                 selected: {ref.watch(discoverListingTypeFilterProvider)},
                                 onSelectionChanged: (set) {
-                                  ref.read(discoverListingTypeFilterProvider.notifier).state = set.first;
+                                  final filter = set.first;
+                                  ref.read(discoverListingTypeFilterProvider.notifier).state = filter;
                                   setState(() => _selectedCluster = null);
+                                  switch (filter) {
+                                    case ListingTypeFilter.offersOnly:
+                                      context.go('/offers');
+                                      break;
+                                    case ListingTypeFilter.requestsOnly:
+                                      context.go('/requests');
+                                      break;
+                                    case ListingTypeFilter.all:
+                                      context.go('/discover');
+                                      break;
+                                  }
                                 },
                                 style: const ButtonStyle(
                                   visualDensity: VisualDensity.compact,
@@ -487,13 +508,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
         final listing = listings[index];
         return _ListingFeedCard(
           listing: listing,
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => ListingDetailScreen(listing: listing),
-              ),
-            );
-          },
+          onTap: () => AppRouter.toListing(context, listing),
         );
       },
     );
@@ -910,10 +925,13 @@ class _MapClusterPreviewCardState extends ConsumerState<_MapClusterPreviewCard> 
 
     return Row(
       children: [
-        UserAvatar(
-          imageUrl: authorProfile?.picture,
-          nameOrPubkey: authorProfile?.bestName ?? listing.authorPubkey,
-          radius: 22,
+        GestureDetector(
+          onTap: () => AppRouter.toProfile(context, listing.authorPubkey),
+          child: UserAvatar(
+            imageUrl: authorProfile?.picture,
+            nameOrPubkey: authorProfile?.bestName ?? listing.authorPubkey,
+            radius: 22,
+          ),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -949,15 +967,18 @@ class _MapClusterPreviewCardState extends ConsumerState<_MapClusterPreviewCard> 
                   ),
                   const SizedBox(width: 6),
                   Expanded(
-                    child: Text(
-                      '${authorProfile?.bestName ?? (listing.isRequest ? "Traveler" : "Host")} • ${listing.location}',
-                      style: TextStyle(
-                        color: theme.colorScheme.onSurfaceVariant,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
+                    child: GestureDetector(
+                      onTap: () => AppRouter.toProfile(context, listing.authorPubkey),
+                      child: Text(
+                        '${authorProfile?.bestName ?? (listing.isRequest ? "Traveler" : "Host")} • ${listing.location}',
+                        style: TextStyle(
+                          color: theme.colorScheme.onSurfaceVariant,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
@@ -967,13 +988,7 @@ class _MapClusterPreviewCardState extends ConsumerState<_MapClusterPreviewCard> 
         ),
         const SizedBox(width: 8),
         FilledButton.tonalIcon(
-          onPressed: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => ListingDetailScreen(listing: listing),
-              ),
-            );
-          },
+          onPressed: () => AppRouter.toListing(context, listing),
           icon: const Icon(Icons.arrow_forward_rounded, size: 16),
           label: const Text('View'),
           style: FilledButton.styleFrom(
@@ -1018,19 +1033,25 @@ class _ListingFeedCard extends ConsumerWidget {
               // Host / Traveler Info Header
               Row(
                 children: [
-                  UserAvatar(
-                    imageUrl: authorProfile?.picture,
-                    nameOrPubkey: authorProfile?.bestName ?? listing.authorPubkey,
-                    radius: 20,
+                  GestureDetector(
+                    onTap: () => AppRouter.toProfile(context, listing.authorPubkey),
+                    child: UserAvatar(
+                      imageUrl: authorProfile?.picture,
+                      nameOrPubkey: authorProfile?.bestName ?? listing.authorPubkey,
+                      radius: 20,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          authorProfile?.bestName ?? (listing.isRequest ? 'Traveler' : 'Host'),
-                          style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                        GestureDetector(
+                          onTap: () => AppRouter.toProfile(context, listing.authorPubkey),
+                          child: Text(
+                            authorProfile?.bestName ?? (listing.isRequest ? 'Traveler' : 'Host'),
+                            style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                          ),
                         ),
                         Row(
                           children: [
