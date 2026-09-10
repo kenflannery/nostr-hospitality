@@ -108,6 +108,16 @@ void main() {
       final newRequest = AppRouter.router.configuration.findMatch(Uri.parse('/requests/new'));
       expect(newRequest.matches, isNotEmpty);
     });
+
+    test('Parses /profile/travel-edit and /profile/edit without matching dynamic /profile/:pubkey', () {
+      final travelEditMatch = AppRouter.router.configuration.findMatch(Uri.parse('/profile/travel-edit'));
+      expect(travelEditMatch.matches, isNotEmpty);
+      expect(travelEditMatch.pathParameters.containsKey('pubkey'), isFalse);
+
+      final editMatch = AppRouter.router.configuration.findMatch(Uri.parse('/profile/edit'));
+      expect(editMatch.matches, isNotEmpty);
+      expect(editMatch.pathParameters.containsKey('pubkey'), isFalse);
+    });
   });
 
   group('AppRouter Navigation Helper Tests', () {

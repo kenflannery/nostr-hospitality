@@ -141,7 +141,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Logged out')),
                   );
-                  Navigator.of(context).pop();
+                  AppRouter.toDiscover(context);
                 }
               },
               icon: const Icon(Icons.logout_rounded),

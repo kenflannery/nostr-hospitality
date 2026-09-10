@@ -459,7 +459,8 @@ class _TravelProfileEditorScreenState extends ConsumerState<TravelProfileEditorS
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isEditing = widget.initialProfile != null;
+    final isEditing = widget.initialProfile != null &&
+        widget.initialProfile!.eventId.isNotEmpty;
 
     return Scaffold(
       appBar: AppBar(

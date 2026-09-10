@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/navigation/app_router.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../models/travel_profile.dart';
 import '../../../models/user_profile.dart';
 import 'package:go_router/go_router.dart';
 
@@ -82,11 +84,19 @@ class _TravelerOnboardingScreenState extends ConsumerState<TravelerOnboardingScr
   }
 
   void _proceedToProfile() {
-    context.go('/profile/travel-edit');
+    final pubkey = ref.read(authStateProvider).valueOrNull?.pubkey ?? '';
+    final enteredName = _nameController.text.trim();
+    final initialTravel = TravelProfile(
+      eventId: '',
+      authorPubkey: pubkey,
+      createdAt: DateTime.now(),
+      name: enteredName.isNotEmpty ? enteredName : null,
+    );
+    AppRouter.toEditTravelProfile(context, initialTravel);
   }
 
   void _finishAndExplore() {
-    context.go('/discover');
+    AppRouter.toDiscover(context);
   }
 
   @override

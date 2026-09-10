@@ -155,25 +155,7 @@ class AppRouter {
         },
       ),
 
-      // User Profiles: /p/:pubkey or /profile/:pubkey (supports npub or hex)
-      GoRoute(
-        path: '/p/:pubkey',
-        parentNavigatorKey: rootNavigatorKey,
-        builder: (context, state) {
-          final pubkey = state.pathParameters['pubkey'];
-          return ProfileScreen(pubkey: pubkey);
-        },
-      ),
-      GoRoute(
-        path: '/profile/:pubkey',
-        parentNavigatorKey: rootNavigatorKey,
-        builder: (context, state) {
-          final pubkey = state.pathParameters['pubkey'];
-          return ProfileScreen(pubkey: pubkey);
-        },
-      ),
-
-      // Profile Editors
+      // Profile Editors (must precede /profile/:pubkey to avoid greedy parameter match)
       GoRoute(
         path: '/profile/edit',
         parentNavigatorKey: rootNavigatorKey,
@@ -190,6 +172,24 @@ class AppRouter {
           final travel =
               state.extra is TravelProfile ? state.extra as TravelProfile : null;
           return TravelProfileEditorScreen(initialProfile: travel);
+        },
+      ),
+
+      // User Profiles: /p/:pubkey or /profile/:pubkey (supports npub or hex)
+      GoRoute(
+        path: '/p/:pubkey',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+          final pubkey = state.pathParameters['pubkey'];
+          return ProfileScreen(pubkey: pubkey);
+        },
+      ),
+      GoRoute(
+        path: '/profile/:pubkey',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+          final pubkey = state.pathParameters['pubkey'];
+          return ProfileScreen(pubkey: pubkey);
         },
       ),
 
@@ -379,12 +379,16 @@ class AppRouter {
     context.go('/listings/edit', extra: listing);
   }
 
-  static void toEditProfile(BuildContext context) {
-    context.go('/profile/edit');
+  static void toDiscover(BuildContext context) {
+    context.go('/discover');
   }
 
-  static void toEditTravelProfile(BuildContext context) {
-    context.go('/profile/travel-edit');
+  static void toEditProfile(BuildContext context, [UserProfile? profile]) {
+    context.go('/profile/edit', extra: profile);
+  }
+
+  static void toEditTravelProfile(BuildContext context, [TravelProfile? profile]) {
+    context.go('/profile/travel-edit', extra: profile);
   }
 
   static void toNewReference(

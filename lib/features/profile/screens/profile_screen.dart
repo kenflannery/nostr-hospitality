@@ -467,7 +467,7 @@ class ProfileScreen extends ConsumerWidget {
                         if (isOwnProfile) ...[
                           Expanded(
                             child: OutlinedButton.icon(
-                              onPressed: () => AppRouter.toEditProfile(context),
+                              onPressed: () => AppRouter.toEditProfile(context, profile),
                               icon: const Icon(Icons.edit_outlined, size: 18),
                               label: const Text('Edit Identity (Kind 0)'),
                             ),
@@ -577,7 +577,7 @@ class ProfileScreen extends ConsumerWidget {
                         if (isOwnProfile)
                           TextButton.icon(
                             onPressed: () =>
-                                AppRouter.toEditTravelProfile(context),
+                                AppRouter.toEditTravelProfile(context, travelProfile),
                             icon: Icon(
                                 travelProfile == null
                                     ? Icons.add_rounded
@@ -617,7 +617,7 @@ class ProfileScreen extends ConsumerWidget {
                               const SizedBox(height: 12),
                               FilledButton.tonalIcon(
                                 onPressed: () =>
-                                    AppRouter.toEditTravelProfile(context),
+                                    AppRouter.toEditTravelProfile(context, travelProfile),
                                 icon:
                                     const Icon(Icons.badge_outlined, size: 16),
                                 label: const Text('Complete Travel Profile'),
