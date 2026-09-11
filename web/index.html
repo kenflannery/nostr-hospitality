@@ -20,6 +20,9 @@
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="Hospitality Libre — Open, decentralized home sharing on Nostr.">
 
+  <!-- Viewport for responsive mobile rendering -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -31,16 +34,240 @@
 
   <title>Hospitality Libre</title>
   <link rel="manifest" href="manifest.json">
+
+  <style>
+    /* Fallback banner styles (renders if WebAssembly is blocked, e.g. in Apple Lockdown Mode) */
+    #wasm-fallback-banner {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 999999;
+      background-color: #F9FAF9;
+      color: #1A211D;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      overflow-y: auto;
+      padding: 24px 16px;
+      box-sizing: border-box;
+      align-items: center;
+      justify-content: center;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      #wasm-fallback-banner {
+        background-color: #141A17;
+        color: #E9ECE9;
+      }
+      #wasm-fallback-banner .banner-card {
+        background-color: #1A211D;
+        border-color: rgba(255, 255, 255, 0.08);
+      }
+      #wasm-fallback-banner .step-number {
+        background-color: #222B26;
+        color: #7CA38E;
+      }
+      #wasm-fallback-banner .note-box {
+        background-color: rgba(124, 163, 142, 0.12);
+        color: #B2D0C1;
+      }
+    }
+
+    .banner-card {
+      background-color: #FFFFFF;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      border-radius: 20px;
+      max-width: 440px;
+      width: 100%;
+      padding: 28px 24px;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.08);
+      text-align: center;
+      box-sizing: border-box;
+    }
+
+    .banner-icon {
+      width: 56px;
+      height: 56px;
+      margin: 0 auto 16px;
+      border-radius: 50%;
+      background-color: rgba(83, 122, 101, 0.12);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #537A65;
+    }
+
+    .banner-title {
+      font-size: 20px;
+      font-weight: 700;
+      margin: 0 0 10px;
+      letter-spacing: -0.3px;
+    }
+
+    .banner-desc {
+      font-size: 14px;
+      line-height: 1.5;
+      opacity: 0.85;
+      margin: 0 0 20px;
+    }
+
+    .steps-container {
+      text-align: left;
+      margin: 0 0 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .step-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      font-size: 13.5px;
+      line-height: 1.45;
+    }
+
+    .step-number {
+      flex-shrink: 0;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background-color: #E9ECE9;
+      color: #537A65;
+      font-weight: 700;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .note-box {
+      background-color: rgba(83, 122, 101, 0.08);
+      border-radius: 12px;
+      padding: 10px 14px;
+      font-size: 12px;
+      line-height: 1.45;
+      color: #3C5A4A;
+      margin-bottom: 20px;
+      text-align: left;
+    }
+
+    .btn-refresh {
+      background-color: #537A65;
+      color: #FFFFFF;
+      border: none;
+      border-radius: 12px;
+      padding: 14px 20px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+      transition: background-color 0.15s ease, transform 0.05s ease;
+    }
+
+    .btn-refresh:hover {
+      background-color: #466755;
+    }
+
+    .btn-refresh:active {
+      transform: scale(0.98);
+    }
+  </style>
 </head>
 <body>
-  <!--
-    You can customize the "flutter_bootstrap.js" script.
-    This is useful to provide a custom configuration to the Flutter loader
-    or to give the user feedback during the initialization process.
+  <!-- Fallback displayed when WebAssembly or CanvasKit is blocked (e.g. Apple Lockdown Mode) -->
+  <div id="wasm-fallback-banner" role="alert" aria-live="polite">
+    <div class="banner-card">
+      <div class="banner-icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          <line x1="12" y1="8" x2="12" y2="12"/>
+          <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+      </div>
+      <h1 class="banner-title">WebAssembly Blocked</h1>
+      <p class="banner-desc">
+        Hospitality Libre requires WebAssembly to render graphics. Safari has blocked WebAssembly, which usually happens when <strong>Lockdown Mode</strong> is enabled.
+      </p>
 
-    For more details:
-    * https://docs.flutter.dev/platform-integration/web/initialization
-  -->
+      <div class="steps-container">
+        <div class="step-item">
+          <span class="step-number">1</span>
+          <span>Tap the <strong>Page Settings</strong> menu in Safari's address bar (the <strong>aA</strong> icon or menu slider).</span>
+        </div>
+        <div class="step-item">
+          <span class="step-number">2</span>
+          <span>Tap <strong>Website Settings</strong>.</span>
+        </div>
+        <div class="step-item">
+          <span class="step-number">3</span>
+          <span>Turn <strong>Lockdown Mode: Off</strong> for this site.</span>
+        </div>
+        <div class="step-item">
+          <span class="step-number">4</span>
+          <span>Tap <strong>Refresh Page</strong> below.</span>
+        </div>
+      </div>
+
+      <div class="note-box">
+        <strong>Privacy Note:</strong> This only creates an exception for <em>hospitalitylibre.com</em>. Lockdown Mode remains active for all other websites and apps on your device.
+      </div>
+
+      <button class="btn-refresh" onclick="window.location.reload()">
+        Refresh Page
+      </button>
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      // Test WebAssembly instantiation (fails in Apple Lockdown Mode)
+      function isWebAssemblySupported() {
+        try {
+          if (typeof WebAssembly === "object" && typeof WebAssembly.instantiate === "function") {
+            // Minimal 8-byte valid WASM module header (\0asm v1)
+            var module = new WebAssembly.Module(new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0]));
+            if (module instanceof WebAssembly.Module) {
+              return new WebAssembly.Instance(module) instanceof WebAssembly.Instance;
+            }
+          }
+        } catch (e) {
+          return false;
+        }
+        return false;
+      }
+
+      function showFallback() {
+        var banner = document.getElementById('wasm-fallback-banner');
+        if (banner) {
+          banner.style.display = 'flex';
+        }
+      }
+
+      // Check immediately
+      if (!isWebAssemblySupported()) {
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', showFallback);
+        } else {
+          showFallback();
+        }
+      }
+
+      // Catch late WebAssembly / CanvasKit initialization failures from WebKit restrictions
+      window.addEventListener('error', function(event) {
+        var msg = (event.message || '') + (event.error ? ' ' + (event.error.message || '') : '');
+        if (/webassembly|canvaskit|skwasm/i.test(msg)) {
+          showFallback();
+        }
+      });
+
+      window.addEventListener('unhandledrejection', function(event) {
+        var reason = event.reason ? (event.reason.message || event.reason.toString()) : '';
+        if (/webassembly|canvaskit|skwasm/i.test(reason)) {
+          showFallback();
+        }
+      });
+    })();
+  </script>
+
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
