@@ -64,31 +64,51 @@ class ListingRepository {
       }
     });
 
-    final subscription = _nostrService.queryEvents(filters: [filter]).listen(
-      (event) {
-        final listing = HospitalityListing.fromNip01Event(event);
-        if (listing != null) {
-          final existing = listingsMap[listing.addressCoordinate];
-          if (existing == null || listing.createdAt.isAfter(existing.createdAt)) {
-            listingsMap[listing.addressCoordinate] = listing;
-            emitCurrent();
-          }
+    void handleListingEvent(Nip01Event event) {
+      final listing = HospitalityListing.fromNip01Event(event);
+      if (listing != null) {
+        final existing = listingsMap[listing.addressCoordinate];
+        if (existing == null || listing.createdAt.isAfter(existing.createdAt)) {
+          listingsMap[listing.addressCoordinate] = listing;
+          emitCurrent();
         }
-      },
+      }
+    }
+
+    // Phase 1: Immediate query across relays currently open
+    final initialSub = _nostrService.queryEvents(filters: [filter]).listen(
+      handleListingEvent,
       onError: (e) {
-        if (!controller.isClosed) {
-          if (!hasEmitted) emitCurrent();
-        }
+        if (!controller.isClosed && !hasEmitted) emitCurrent();
       },
       onDone: () {
         if (!hasEmitted) emitCurrent();
-        if (!controller.isClosed) controller.close();
       },
     );
 
+    // Phase 2: Live persistent subscription to capture listings as relays finish handshaking
+    final liveSubResponse = _nostrService.liveSubscription(filter: filter);
+    final liveSub = liveSubResponse.stream.listen(
+      handleListingEvent,
+      onError: (_) {},
+    );
+
+    // Phase 3: Auto-warmup re-query at 2.5s once all bootstrap relay sockets are warm
+    StreamSubscription<Nip01Event>? warmUpSub;
+    final warmUpTimer = Timer(const Duration(milliseconds: 2500), () {
+      if (controller.isClosed) return;
+      warmUpSub = _nostrService.queryEvents(filters: [filter]).listen(
+        handleListingEvent,
+        onError: (_) {},
+      );
+    });
+
     controller.onCancel = () {
       timer.cancel();
-      subscription.cancel();
+      warmUpTimer.cancel();
+      initialSub.cancel();
+      liveSub.cancel();
+      warmUpSub?.cancel();
     };
 
     return controller.stream;
@@ -121,31 +141,41 @@ class ListingRepository {
       }
     });
 
+    void handleAuthorEvent(Nip01Event event) {
+      final listing = HospitalityListing.fromNip01Event(event);
+      if (listing != null) {
+        final existing = listingsMap[listing.dTag];
+        if (existing == null || listing.createdAt.isAfter(existing.createdAt)) {
+          listingsMap[listing.dTag] = listing;
+          emitCurrent();
+        }
+      }
+    }
+
     final sub = _nostrService.queryEvents(filters: [filter]).listen(
-      (event) {
-        final listing = HospitalityListing.fromNip01Event(event);
-        if (listing != null) {
-          final existing = listingsMap[listing.dTag];
-          if (existing == null || listing.createdAt.isAfter(existing.createdAt)) {
-            listingsMap[listing.dTag] = listing;
-            emitCurrent();
-          }
-        }
-      },
+      handleAuthorEvent,
       onError: (_) {
-        if (!controller.isClosed) {
-          if (!hasEmitted) emitCurrent();
-        }
+        if (!controller.isClosed && !hasEmitted) emitCurrent();
       },
       onDone: () {
         if (!hasEmitted) emitCurrent();
-        if (!controller.isClosed) controller.close();
       },
     );
 
+    StreamSubscription<Nip01Event>? authorWarmUpSub;
+    final authorWarmUpTimer = Timer(const Duration(milliseconds: 2000), () {
+      if (controller.isClosed) return;
+      authorWarmUpSub = _nostrService.queryEvents(filters: [filter]).listen(
+        handleAuthorEvent,
+        onError: (_) {},
+      );
+    });
+
     controller.onCancel = () {
       timer.cancel();
+      authorWarmUpTimer.cancel();
       sub.cancel();
+      authorWarmUpSub?.cancel();
     };
 
     return controller.stream;
