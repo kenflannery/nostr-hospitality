@@ -27,6 +27,8 @@ The app is the **reference implementation** establishing open Nostr protocol sta
 | Kind | Protocol / Specification | Purpose | Formal Spec |
 |---|---|---|---|
 | `0` | NIP-01 User Metadata | Base profile identity, avatar, display name, bio, and NIP-05 verification | [NIP-01](https://github.com/nostr-protocol/nips/blob/master/01.md) |
+| `3` | NIP-02: Contact List | Universal Nostr follow list with non-destructive merge | [NIP-02](https://github.com/nostr-protocol/nips/blob/master/02.md) |
+| `30000` | NIP-51: Follow Sets | Parameterized people set for Hospitality Libre connections (`d: hospitality-libre-follows`) | [`nips/follow-sets-and-contacts.md`](nips/follow-sets-and-contacts.md) |
 | `30602` | Travel & Community Profile (Draft NIP) | Parameterized profile: nickname, languages, locations (origin/home/current), and NIP-39 identity links | [`nips/travel-community-profile.md`](nips/travel-community-profile.md) |
 | `30402` | NIP-99: Hospitality Classified Listings | Addressable hospitality hosting offers, stay requests, dates (`start`/`end`), and preferences | [`nips/hospitality-listings.md`](nips/hospitality-listings.md) |
 | `7654` | Interaction References (Draft NIP) | Portable interpersonal references, reviews, and historical interaction statements | [`nips/interaction-references.md`](nips/interaction-references.md) |
@@ -46,6 +48,8 @@ Formal NIP proposals and reference documents for developers building interoperab
 1. **[`nips/hospitality-listings.md`](nips/hospitality-listings.md)**: NIP-99 Hospitality Hosting Profile (`kind: 30402`), 4-char geohash privacy standard, and tri-state hosting preferences.
 2. **[`nips/travel-community-profile.md`](nips/travel-community-profile.md)**: Travel & Community Profile (`kind: 30602`), traveler nickname, languages, ISO 3166-1 country codes, cascading geohash tags, and NIP-39 cross-network links.
 3. **[`nips/interaction-references.md`](nips/interaction-references.md)**: Interaction References (`kind: 7654`), subject tags, interaction context, roles, and sentiment nullability rules.
+4. **[`nips/community-labeling-and-safety.md`](nips/community-labeling-and-safety.md)**: Community Labeling & Moderation (`kind: 1985`, `1984`, `10000`, `30015`).
+5. **[`nips/follow-sets-and-contacts.md`](nips/follow-sets-and-contacts.md)**: Dual-Sync Follow Lists (`kind: 3` Contact List & `kind: 30000` Categorized Follow Set).
 
 ---
 

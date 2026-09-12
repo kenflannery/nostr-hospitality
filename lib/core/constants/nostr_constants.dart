@@ -9,6 +9,12 @@ class NostrConstants {
   /// Kind 1: Short text note (NIP-01)
   static const int textNoteKind = 1;
 
+  /// Kind 3: Contact List (NIP-02)
+  static const int contactListKind = 3;
+
+  /// Kind 30000: Categorized People List / Follow Set (NIP-51)
+  static const int followSetKind = 30000;
+
   /// Kind 30402: Classified listing (NIP-99)
   static const int classifiedListingKind = 30402;
 
@@ -181,6 +187,14 @@ class NostrConstants {
 
   /// Standard identifier for the user's custom cautionary tags interest set (Kind 30015)
   static const String cautionaryTagsSetDTag = 'hospitality-cautionary-tags';
+
+  // --- NIP-51 Hospitality Follow Set Conventions ---
+  static const String followSetDTag = 'hospitality-libre-follows';
+  static const String followSetTitle = 'People I follow on Hospitality Libre';
+  static const String followSetDescription =
+      'Hosts, travelers, and friends followed on Hospitality Libre';
+  static const String followSetImage =
+      'https://image.nostr.build/654699c88f355dfa49f42f5bf5b163d60d031324b5f5805acb02b508e1153881.jpg';
 
   // --- Default Bootstrap Relays ---
   static const List<String> defaultRelays = [

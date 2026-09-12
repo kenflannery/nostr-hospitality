@@ -199,6 +199,14 @@ class _AboutPageState extends State<AboutPage>
             description:
                 'Coordinate stays with end-to-end encrypted direct messages using NIP-17 gift-wrapping. Only you and your recipient can read them.',
           ),
+          _buildFeatureCard(
+            context,
+            theme,
+            icon: Icons.group_outlined,
+            title: 'Dual-Sync Follows (Kind 3 & Kind 30000)',
+            description:
+                'Follow hosts, travelers, and friends. Follows are dual-synchronized to your universal Nostr Contact List (Kind 3) and a dedicated Hospitality Libre Follow Set (Kind 30000) so your connections stay portable across apps.',
+          ),
 
           const SizedBox(height: 28),
           Divider(color: theme.dividerColor.withValues(alpha: 0.5)),
@@ -763,6 +771,51 @@ class _AboutPageState extends State<AboutPage>
             tags: [
               '`Kind 10000` - Replaceable personal mute list tagging blocked pubkeys with `["p", "<pubkey>"]`',
               '`Kind 30015` - Parameterized replaceable set with identifier `hospitality-cautionary-tags` and `["t", "<tag>"]` items',
+            ],
+          ),
+
+          // Contact List (Kind 3) & Follow Set (Kind 30000)
+          _buildSpecSection(
+            context,
+            theme,
+            isDark,
+            title: 'Contact Lists & Follow Sets (Kind 3 - NIP-02 & Kind 30000 - NIP-51)',
+            intro:
+                'Dual-synchronized follow architecture preserving universal Nostr follows while organizing app-specific travel connections:',
+            jsonSpec: '''// Kind 3: Universal NIP-02 Contact List
+{
+  "kind": 3,
+  "pubkey": "<user-pubkey-hex>",
+  "content": "",
+  "tags": [
+    ["p", "<contact-pubkey-1>", "wss://relay.damus.io", "alice"],
+    ["p", "<contact-pubkey-2>"]
+  ]
+}
+
+// Kind 30000: NIP-51 Categorized People Set (d: hospitality-libre-follows)
+{
+  "kind": 30000,
+  "pubkey": "<user-pubkey-hex>",
+  "content": "",
+  "tags": [
+    ["d", "hospitality-libre-follows"],
+    ["title", "People I follow on Hospitality Libre"],
+    ["description", "Hosts, travelers, and friends followed on Hospitality Libre"],
+    ["image", "https://image.nostr.build/654699c88f355dfa49f42f5bf5b163d60d031324b5f5805acb02b508e1153881.jpg"],
+    ["p", "<contact-pubkey-1>"],
+    ["p", "<contact-pubkey-2>"]
+  ]
+}''',
+            contentDesc:
+                'Kind 3 publishes standard Nostr follows for compatibility with social clients (Damus, Primal, Amethyst) using non-destructive merging. Kind 30000 maintains the scoped Hospitality Libre follow set with title, description, and cover image.',
+            tags: [
+              '`Kind 3 tags` - `["p", "<pubkey>", "<relay-url>", "<petname>"]` per NIP-02',
+              '`Kind 30000 d` - Identifier set to `hospitality-libre-follows`',
+              '`Kind 30000 title` - Human-readable list title',
+              '`Kind 30000 description` - Human-readable list summary',
+              '`Kind 30000 image` - Cover artwork for the follow set',
+              '`Kind 30000 p` - Pubkey tags for each followed community member',
             ],
           ),
 

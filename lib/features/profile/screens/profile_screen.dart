@@ -15,6 +15,7 @@ import '../../references/widgets/reference_card.dart';
 import '../../../core/navigation/app_router.dart';
 import '../widgets/community_label_dialog.dart';
 import '../widgets/community_labels_section.dart';
+import '../widgets/following_dialog.dart';
 import '../../moderation/widgets/report_dialog.dart';
 
 /// User Profile Screen displaying Kind 0 metadata, Kind 30602 Travel Profile,
@@ -35,6 +36,9 @@ class ProfileScreen extends ConsumerWidget {
         (targetPubkey != null && targetPubkey == authState?.pubkey);
     final isMuted = targetPubkey != null
         ? ref.watch(isPubkeyMutedProvider(targetPubkey))
+        : false;
+    final isFollowing = targetPubkey != null
+        ? ref.watch(isPubkeyFollowedProvider(targetPubkey))
         : false;
 
     if (targetPubkey == null ||
@@ -101,6 +105,10 @@ class ProfileScreen extends ConsumerWidget {
     final travelRequests = allAuthorListings.where((l) => l.isRequest).toList();
     final summary = summaryAsync.valueOrNull;
     final references = referencesStream.valueOrNull ?? [];
+    final contactListAsync = ref.watch(userContactListProvider(targetPubkey));
+    final followingCount = isOwnProfile
+        ? ref.watch(followingPubkeysProvider).length
+        : contactListAsync.valueOrNull?.contacts.length;
 
     final hasTravelName =
         travelProfile?.name != null && travelProfile!.name!.trim().isNotEmpty;
@@ -181,6 +189,28 @@ class ProfileScreen extends ConsumerWidget {
                   subjectPubkey: targetPubkey,
                   subjectName: primaryName,
                 );
+              } else if (value == 'follow') {
+                final followService = ref.read(followServiceProvider);
+                await followService.followUser(targetPubkey);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Following $primaryName'),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              } else if (value == 'unfollow') {
+                final followService = ref.read(followServiceProvider);
+                await followService.unfollowUser(targetPubkey);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Unfollowed $primaryName'),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
               } else if (value == 'mute') {
                 final mod = ref.read(moderationServiceProvider);
                 await mod.mutePubkey(targetPubkey);
@@ -209,10 +239,51 @@ class ProfileScreen extends ConsumerWidget {
                   targetPubkey: targetPubkey,
                   targetDisplayName: primaryName,
                 );
+              } else if (value == 'view_following') {
+                showFollowingDialog(
+                  context,
+                  targetPubkey: targetPubkey,
+                  targetName: primaryName,
+                );
               }
             },
             itemBuilder: (context) => [
+              PopupMenuItem(
+                value: 'view_following',
+                child: Row(
+                  children: [
+                    const Icon(Icons.people_alt_outlined, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        followingCount != null
+                            ? 'Following ($followingCount)'
+                            : 'Following',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               if (!isOwnProfile) ...[
+                PopupMenuItem(
+                  value: isFollowing ? 'unfollow' : 'follow',
+                  child: Row(
+                    children: [
+                      Icon(
+                        isFollowing
+                            ? Icons.person_remove_outlined
+                            : Icons.person_add_alt_1_outlined,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          isFollowing ? 'Unfollow User' : 'Follow User',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 const PopupMenuItem(
                   value: 'add_label',
                   child: Row(
@@ -305,6 +376,7 @@ class ProfileScreen extends ConsumerWidget {
           ref.invalidate(userReferenceSummaryProvider(targetPubkey));
           ref.invalidate(userReferencesStreamProvider(targetPubkey));
           ref.invalidate(userLabelsStreamProvider(targetPubkey));
+          ref.invalidate(userContactListProvider(targetPubkey));
         },
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -410,6 +482,45 @@ class ProfileScreen extends ConsumerWidget {
                                     },
                                   ),
                                 ],
+                              ),
+                              const SizedBox(height: 6),
+                              Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  onTap: () => showFollowingDialog(
+                                    context,
+                                    targetPubkey: targetPubkey,
+                                    targetName: primaryName,
+                                  ),
+                                  borderRadius: BorderRadius.circular(6),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 2.0, horizontal: 2.0),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.people_alt_outlined,
+                                          size: 15,
+                                          color: theme.colorScheme.primary,
+                                        ),
+                                        const SizedBox(width: 5),
+                                        Text(
+                                          followingCount != null
+                                              ? 'Following $followingCount'
+                                              : 'Following...',
+                                          style: theme.textTheme.bodyMedium?.copyWith(
+                                            color: theme.colorScheme.primary,
+                                            fontWeight: FontWeight.w600,
+                                            decoration: TextDecoration.underline,
+                                            decorationColor: theme.colorScheme.primary
+                                                .withValues(alpha: 0.4),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
                               ),
                             ],
                           ),
@@ -596,6 +707,39 @@ class ProfileScreen extends ConsumerWidget {
                             ),
                           ),
                         ] else ...[
+                          if (isFollowing)
+                            OutlinedButton.icon(
+                              onPressed: () async {
+                                await ref.read(followServiceProvider).unfollowUser(targetPubkey);
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Unfollowed $primaryName'),
+                                      behavior: SnackBarBehavior.floating,
+                                    ),
+                                  );
+                                }
+                              },
+                              icon: const Icon(Icons.check_rounded, size: 18),
+                              label: const Text('Following'),
+                            )
+                          else
+                            FilledButton.tonalIcon(
+                              onPressed: () async {
+                                await ref.read(followServiceProvider).followUser(targetPubkey);
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Following $primaryName'),
+                                      behavior: SnackBarBehavior.floating,
+                                    ),
+                                  );
+                                }
+                              },
+                              icon: const Icon(Icons.person_add_alt_1_rounded, size: 18),
+                              label: const Text('Follow'),
+                            ),
+                          const SizedBox(width: 8),
                           Expanded(
                             child: FilledButton.icon(
                               onPressed: () => AppRouter.toChat(

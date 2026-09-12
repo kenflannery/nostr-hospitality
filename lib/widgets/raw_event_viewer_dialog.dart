@@ -6,6 +6,7 @@ import '../models/community_label.dart';
 import '../models/hospitality_listing.dart';
 import '../models/interaction_reference.dart';
 import '../models/moderation_models.dart';
+import '../models/follow_list.dart';
 import '../models/travel_profile.dart';
 import '../models/user_profile.dart';
 
@@ -72,6 +73,12 @@ class RawEventViewerDialog extends StatelessWidget {
       final nip01 = ev.toNip01Event(authorPubkey: '');
       return _extractEventMap(nip01);
     } else if (ev is CautionaryTagSet) {
+      final nip01 = ev.toNip01Event(authorPubkey: '');
+      return _extractEventMap(nip01);
+    } else if (ev is NostrContactList) {
+      final nip01 = ev.toNip01Event(authorPubkey: '');
+      return _extractEventMap(nip01);
+    } else if (ev is HospitalityFollowSet) {
       final nip01 = ev.toNip01Event(authorPubkey: '');
       return _extractEventMap(nip01);
     } else if (ev is Map<String, dynamic>) {

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/chat_message.dart';
+import '../../models/follow_list.dart';
 import '../../models/hospitality_listing.dart';
 import '../../models/interaction_reference.dart';
 import '../../models/reference_summary.dart';
@@ -19,6 +20,7 @@ import '../../models/community_label.dart';
 import '../../repositories/community_label_repository.dart';
 import '../services/media_upload_service.dart';
 import '../services/moderation_service.dart';
+import '../services/follow_service.dart';
 import '../services/update_checker_service.dart';
 
 // --- Base Infrastructure Providers ---
@@ -80,10 +82,16 @@ final messageRepositoryProvider = Provider<MessageRepository>((ref) {
   return MessageRepository(nostr);
 });
 
-final moderationServiceProvider = Provider<ModerationService>((ref) {
+final moderationServiceProvider = ChangeNotifierProvider<ModerationService>((ref) {
   final nostr = ref.watch(nostrServiceProvider);
   final prefs = ref.watch(sharedPreferencesProvider);
   return ModerationService(nostr, prefs);
+});
+
+final followServiceProvider = ChangeNotifierProvider<FollowService>((ref) {
+  final nostr = ref.watch(nostrServiceProvider);
+  final prefs = ref.watch(sharedPreferencesProvider);
+  return FollowService(nostr, prefs);
 });
 
 final communityLabelRepositoryProvider = Provider<CommunityLabelRepository>((ref) {
@@ -95,15 +103,24 @@ final communityLabelRepositoryProvider = Provider<CommunityLabelRepository>((ref
 
 class AuthNotifier extends StateNotifier<AsyncValue<AuthState>> {
   final AuthRepository _repo;
+  final Ref _ref;
 
-  AuthNotifier(this._repo) : super(const AsyncValue.loading()) {
+  AuthNotifier(this._repo, this._ref) : super(const AsyncValue.loading()) {
     init();
+  }
+
+  void _syncServicesOnLogin(AuthState auth) {
+    if (auth.isAuthenticated && auth.pubkey != null) {
+      _ref.read(moderationServiceProvider).syncWithRelays();
+      _ref.read(followServiceProvider).syncWithRelays();
+    }
   }
 
   Future<void> init() async {
     try {
       final auth = await _repo.initialize();
       state = AsyncValue.data(auth);
+      _syncServicesOnLogin(auth);
     } catch (e, st) {
       state = AsyncValue.error(e, st);
     }
@@ -114,6 +131,7 @@ class AuthNotifier extends StateNotifier<AsyncValue<AuthState>> {
     try {
       final authState = await _repo.loginWithPrivateKey(privKey);
       state = AsyncValue.data(authState);
+      _syncServicesOnLogin(authState);
     } catch (e, st) {
       state = AsyncValue.error(e, st);
       rethrow;
@@ -125,6 +143,7 @@ class AuthNotifier extends StateNotifier<AsyncValue<AuthState>> {
     try {
       final authState = await _repo.loginWithNip07();
       state = AsyncValue.data(authState);
+      _syncServicesOnLogin(authState);
     } catch (e, st) {
       state = AsyncValue.error(e, st);
       rethrow;
@@ -136,6 +155,7 @@ class AuthNotifier extends StateNotifier<AsyncValue<AuthState>> {
     try {
       final authState = await _repo.loginWithNip46(bunkerUri, explicitUserPubkey: explicitUserPubkey);
       state = AsyncValue.data(authState);
+      _syncServicesOnLogin(authState);
     } catch (e, st) {
       state = AsyncValue.error(e, st);
       rethrow;
@@ -147,6 +167,7 @@ class AuthNotifier extends StateNotifier<AsyncValue<AuthState>> {
     try {
       final authState = await _repo.generateNewAccount();
       state = AsyncValue.data(authState);
+      _syncServicesOnLogin(authState);
     } catch (e, st) {
       state = AsyncValue.error(e, st);
       rethrow;
@@ -167,7 +188,7 @@ class AuthNotifier extends StateNotifier<AsyncValue<AuthState>> {
 final authStateProvider =
     StateNotifierProvider<AuthNotifier, AsyncValue<AuthState>>((ref) {
   final repo = ref.watch(authRepositoryProvider);
-  return AuthNotifier(repo);
+  return AuthNotifier(repo, ref);
 });
 
 // --- Data Providers ---
@@ -320,4 +341,23 @@ final mutedPubkeysProvider = Provider<Set<String>>((ref) {
 final isPubkeyMutedProvider = Provider.family<bool, String>((ref, pubkey) {
   final moderationService = ref.watch(moderationServiceProvider);
   return moderationService.isMuted(pubkey);
+});
+
+/// Followed pubkeys set provider (reacts when follow status updates)
+final followingPubkeysProvider = Provider<Set<String>>((ref) {
+  final followService = ref.watch(followServiceProvider);
+  return followService.followingPubkeys;
+});
+
+/// Fast check if a pubkey is followed
+final isPubkeyFollowedProvider = Provider.family<bool, String>((ref, pubkey) {
+  final followService = ref.watch(followServiceProvider);
+  return followService.isFollowing(pubkey);
+});
+
+/// Contact list provider for any user pubkey
+final userContactListProvider =
+    FutureProvider.family.autoDispose<NostrContactList?, String>((ref, pubkey) async {
+  final followService = ref.watch(followServiceProvider);
+  return followService.getContactsForUser(pubkey);
 });

@@ -10,7 +10,7 @@ import '../../models/moderation_models.dart';
 /// - Mute / Block List (NIP-51 Kind 10000)
 /// - Reporting (NIP-56 Kind 1984)
 /// - Cautionary Tag Interest Set (NIP-51 Kind 30015)
-class ModerationService {
+class ModerationService extends ChangeNotifier {
   final NostrService _nostrService;
   final SharedPreferences _prefs;
 
@@ -68,6 +68,7 @@ class ModerationService {
         final merged = {...mutedPubkeysNotifier.value, ...parsedMute.mutedPubkeys};
         mutedPubkeysNotifier.value = merged;
         await _prefs.setStringList(_prefKeyMutedPubkeys, merged.toList());
+        notifyListeners();
       }
     } catch (_) {}
 
@@ -95,6 +96,7 @@ class ModerationService {
       if (parsedCaution != null && parsedCaution.tags.isNotEmpty) {
         cautionTagsNotifier.value = parsedCaution.tags;
         await _prefs.setStringList(_prefKeyCautionTags, parsedCaution.tags.toList());
+        notifyListeners();
       }
     } catch (_) {}
   }
@@ -119,6 +121,7 @@ class ModerationService {
     final updated = Set<String>.from(mutedPubkeysNotifier.value)..add(clean);
     mutedPubkeysNotifier.value = updated;
     await _prefs.setStringList(_prefKeyMutedPubkeys, updated.toList());
+    notifyListeners();
 
     final activePubkey = _nostrService.signerService.activePublicKey;
     if (activePubkey != null) {
@@ -138,6 +141,7 @@ class ModerationService {
     final updated = Set<String>.from(mutedPubkeysNotifier.value)..remove(clean);
     mutedPubkeysNotifier.value = updated;
     await _prefs.setStringList(_prefKeyMutedPubkeys, updated.toList());
+    notifyListeners();
 
     final activePubkey = _nostrService.signerService.activePublicKey;
     if (activePubkey != null) {
@@ -187,6 +191,7 @@ class ModerationService {
     final cleanTags = newTags.map((t) => t.trim().toLowerCase()).where((t) => t.isNotEmpty).toSet();
     cautionTagsNotifier.value = cleanTags;
     await _prefs.setStringList(_prefKeyCautionTags, cleanTags.toList());
+    notifyListeners();
 
     final activePubkey = _nostrService.signerService.activePublicKey;
     if (activePubkey != null) {

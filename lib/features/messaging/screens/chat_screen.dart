@@ -171,6 +171,28 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             onSelected: (value) async {
               if (value == 'view_profile') {
                 AppRouter.toProfile(context, _recipientPubkeyHex);
+              } else if (value == 'follow') {
+                final followService = ref.read(followServiceProvider);
+                await followService.followUser(_recipientPubkeyHex);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Following $name'),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              } else if (value == 'unfollow') {
+                final followService = ref.read(followServiceProvider);
+                await followService.unfollowUser(_recipientPubkeyHex);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Unfollowed $name'),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
               } else if (value == 'add_label') {
                 showAddCommunityLabelDialog(
                   context,
@@ -209,6 +231,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             },
             itemBuilder: (context) {
               final isMuted = ref.watch(isPubkeyMutedProvider(_recipientPubkeyHex));
+              final isFollowing = ref.watch(isPubkeyFollowedProvider(_recipientPubkeyHex));
               return [
                 const PopupMenuItem(
                   value: 'view_profile',
@@ -217,6 +240,23 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       Icon(Icons.person_outline_rounded, size: 18),
                       SizedBox(width: 8),
                       Expanded(child: Text('View Profile')),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: isFollowing ? 'unfollow' : 'follow',
+                  child: Row(
+                    children: [
+                      Icon(
+                        isFollowing
+                            ? Icons.person_remove_outlined
+                            : Icons.person_add_alt_1_outlined,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(isFollowing ? 'Unfollow $name' : 'Follow $name'),
+                      ),
                     ],
                   ),
                 ),
