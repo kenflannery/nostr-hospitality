@@ -15,7 +15,10 @@ import '../nostr/nostr_service.dart';
 import '../nostr/relay_config.dart';
 import '../nostr/signer_service.dart';
 import '../nostr/signers/nip07_signer.dart';
+import '../../models/community_label.dart';
+import '../../repositories/community_label_repository.dart';
 import '../services/media_upload_service.dart';
+import '../services/moderation_service.dart';
 import '../services/update_checker_service.dart';
 
 // --- Base Infrastructure Providers ---
@@ -75,6 +78,17 @@ final referenceRepositoryProvider = Provider<ReferenceRepository>((ref) {
 final messageRepositoryProvider = Provider<MessageRepository>((ref) {
   final nostr = ref.watch(nostrServiceProvider);
   return MessageRepository(nostr);
+});
+
+final moderationServiceProvider = Provider<ModerationService>((ref) {
+  final nostr = ref.watch(nostrServiceProvider);
+  final prefs = ref.watch(sharedPreferencesProvider);
+  return ModerationService(nostr, prefs);
+});
+
+final communityLabelRepositoryProvider = Provider<CommunityLabelRepository>((ref) {
+  final nostr = ref.watch(nostrServiceProvider);
+  return CommunityLabelRepository(nostr);
 });
 
 // --- Auth State Notifier ---
@@ -287,4 +301,23 @@ final nip07Nip44SupportedProvider =
 final appUpdateInfoProvider =
     FutureProvider.autoDispose<AppUpdateInfo>((ref) async {
   return UpdateCheckerService.checkLatestRelease();
+});
+
+/// Community labels stream provider for a specific subject pubkey
+final userLabelsStreamProvider =
+    StreamProvider.family.autoDispose<List<CommunityLabel>, String>((ref, subjectPubkey) {
+  final repo = ref.watch(communityLabelRepositoryProvider);
+  return repo.getLabelsForUserStream(subjectPubkey);
+});
+
+/// Muted pubkeys set provider (reacts when mute status updates)
+final mutedPubkeysProvider = Provider<Set<String>>((ref) {
+  final moderationService = ref.watch(moderationServiceProvider);
+  return moderationService.mutedPubkeys;
+});
+
+/// Fast check if a pubkey is muted
+final isPubkeyMutedProvider = Provider.family<bool, String>((ref, pubkey) {
+  final moderationService = ref.watch(moderationServiceProvider);
+  return moderationService.isMuted(pubkey);
 });

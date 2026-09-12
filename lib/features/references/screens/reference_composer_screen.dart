@@ -605,6 +605,8 @@ class _ReferenceComposerScreenState
         tags: _selectedTags,
       );
       await repo.publishReference(draft);
+      ref.invalidate(userReferencesStreamProvider(widget.subjectPubkey));
+      ref.invalidate(userReferenceSummaryProvider(widget.subjectPubkey));
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

@@ -150,10 +150,17 @@ class _ConversationTile extends ConsumerWidget {
 
     return ListTile(
       onTap: onTap,
-      leading: UserAvatar(
-        imageUrl: profile?.picture,
-        nameOrPubkey: displayName,
-        radius: 24,
+      leading: Tooltip(
+        message: 'View profile',
+        child: InkWell(
+          onTap: () => AppRouter.toProfile(context, conversation.otherPubkey),
+          borderRadius: BorderRadius.circular(24),
+          child: UserAvatar(
+            imageUrl: profile?.picture,
+            nameOrPubkey: displayName,
+            radius: 24,
+          ),
+        ),
       ),
       title: Text(
         displayName,

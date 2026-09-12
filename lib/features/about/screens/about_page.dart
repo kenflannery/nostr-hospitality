@@ -674,6 +674,98 @@ class _AboutPageState extends State<AboutPage>
             ],
           ),
 
+          // NIP-32 Community Labeling Spec
+          _buildSpecSection(
+            context,
+            theme,
+            isDark,
+            title: 'Community Labeling & Endorsements (Kind 1985 - NIP-32)',
+            intro:
+                'NIP-32 standalone trait endorsements, lifestyle vibes, and community advisories without requiring a full stay reference:',
+            jsonSpec: '''{
+  "kind": 1985,
+  "pubkey": "<author-pubkey-hex>",
+  "content": "Made a wonderful pasta dish and shared stories about the Pacific Crest Trail.",
+  "tags": [
+    ["L", "#t"],
+    ["l", "great_cook", "#t"],
+    ["p", "<subject-pubkey-hex>"]
+  ],
+  "created_at": 1719234800
+}''',
+            contentDesc:
+                'The content field contains optional context, commentary, or anecdote describing the reason for the trait or boundary label.',
+            tags: [
+              '`L` (REQUIRED) - Label namespace identifier (standardized to `#t` for hashtag / trait endorsements)',
+              '`l` (REQUIRED) - Specific label value and namespace (e.g. `["l", "great_cook", "#t"]` or `["l", "creepy", "#t"]`)',
+              '`p` (REQUIRED) - Subject pubkey being endorsed or labeled',
+              '`e` (OPTIONAL) - Target event ID if the label pertains to a specific listing or stay request',
+            ],
+          ),
+
+          // NIP-56 Reporting Spec
+          _buildSpecSection(
+            context,
+            theme,
+            isDark,
+            title: 'Adversarial Reporting & Moderation (Kind 1984 - NIP-56)',
+            intro:
+                'Standard decentralized reporting for accounts and listings to satisfy Apple App Store Guideline 1.2 and relay spam filtering:',
+            jsonSpec: '''{
+  "kind": 1984,
+  "pubkey": "<reporter-pubkey-hex>",
+  "content": "Bot account posting commercial spam links on home listings.",
+  "tags": [
+    ["p", "<offender-pubkey-hex>", "spam"]
+  ],
+  "created_at": 1719234800
+}''',
+            contentDesc:
+                'Optional explanation provided by the reporter detailing the violation.',
+            tags: [
+              '`p` (OPTIONAL) - Offender pubkey with violation category: `["p", "<pubkey>", "<category>"]`',
+              '`e` (OPTIONAL) - Specific event ID being reported: `["e", "<event-id>", "<category>"]`',
+              '`Standard Categories` - `spam`, `nudity`, `profanity`, `illegal`, `impersonation`, `other`',
+            ],
+          ),
+
+          // NIP-51 Mute List & Interest Sets
+          _buildSpecSection(
+            context,
+            theme,
+            isDark,
+            title: 'Mute Lists & Cautionary Sets (Kind 10000 & 30015 - NIP-51)',
+            intro:
+                'Cryptographically signed personal blocklists and customizable cautionary tag sets:',
+            jsonSpec: '''// Kind 10000: Personal Mute List
+{
+  "kind": 10000,
+  "pubkey": "<user-pubkey-hex>",
+  "tags": [
+    ["p", "<blocked-pubkey-1>"],
+    ["p", "<blocked-pubkey-2>"]
+  ]
+}
+
+// Kind 30015: Cautionary Tags Set (d: hospitality-cautionary-tags)
+{
+  "kind": 30015,
+  "pubkey": "<user-pubkey-hex>",
+  "tags": [
+    ["d", "hospitality-cautionary-tags"],
+    ["t", "creepy"],
+    ["t", "thief"],
+    ["t", "unresponsive"]
+  ]
+}''',
+            contentDesc:
+                'Mute lists allow clients to drop content from blocked users across the entire Nostr network. Kind 30015 defines the user-customizable list of tags considered cautionary/safety-sensitive in their UI.',
+            tags: [
+              '`Kind 10000` - Replaceable personal mute list tagging blocked pubkeys with `["p", "<pubkey>"]`',
+              '`Kind 30015` - Parameterized replaceable set with identifier `hospitality-cautionary-tags` and `["t", "<tag>"]` items',
+            ],
+          ),
+
           const SizedBox(height: 40),
         ],
       ),

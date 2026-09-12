@@ -7,6 +7,9 @@ import '../../../core/utils/date_formatter.dart';
 import '../../../core/utils/nip19_utils.dart';
 import '../../../models/chat_message.dart';
 import '../../../widgets/user_avatar.dart';
+import '../../../core/navigation/app_router.dart';
+import '../../moderation/widgets/report_dialog.dart';
+import '../../profile/widgets/community_label_dialog.dart';
 
 /// Direct messaging chat thread using NIP-17.
 class ChatScreen extends ConsumerStatefulWidget {
@@ -120,35 +123,151 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           },
         ),
         titleSpacing: 0,
-        title: Row(
-          children: [
-            UserAvatar(
-              imageUrl: profile?.picture,
-              nameOrPubkey: name,
-              radius: 18,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    name,
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        title: InkWell(
+          onTap: () => AppRouter.toProfile(context, _recipientPubkeyHex),
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4.0),
+            child: Row(
+              children: [
+                UserAvatar(
+                  imageUrl: profile?.picture,
+                  nameOrPubkey: name,
+                  radius: 18,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name,
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        'NIP-17 Encrypted DM',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
                   ),
-                  Text(
-                    'NIP-17 Encrypted DM',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: theme.colorScheme.primary,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.account_circle_outlined),
+            tooltip: 'View Profile',
+            onPressed: () => AppRouter.toProfile(context, _recipientPubkeyHex),
+          ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert_rounded),
+            tooltip: 'More actions',
+            onSelected: (value) async {
+              if (value == 'view_profile') {
+                AppRouter.toProfile(context, _recipientPubkeyHex);
+              } else if (value == 'add_label') {
+                showAddCommunityLabelDialog(
+                  context,
+                  subjectPubkey: _recipientPubkeyHex,
+                  subjectName: name,
+                );
+              } else if (value == 'mute') {
+                final mod = ref.read(moderationServiceProvider);
+                await mod.mutePubkey(_recipientPubkeyHex);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Muted $name'),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              } else if (value == 'unmute') {
+                final mod = ref.read(moderationServiceProvider);
+                await mod.unmutePubkey(_recipientPubkeyHex);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Unmuted $name'),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              } else if (value == 'report') {
+                showReportDialog(
+                  context,
+                  targetPubkey: _recipientPubkeyHex,
+                  targetDisplayName: name,
+                );
+              }
+            },
+            itemBuilder: (context) {
+              final isMuted = ref.watch(isPubkeyMutedProvider(_recipientPubkeyHex));
+              return [
+                const PopupMenuItem(
+                  value: 'view_profile',
+                  child: Row(
+                    children: [
+                      Icon(Icons.person_outline_rounded, size: 18),
+                      SizedBox(width: 8),
+                      Expanded(child: Text('View Profile')),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'add_label',
+                  child: Row(
+                    children: [
+                      Icon(Icons.label_outline_rounded, size: 18),
+                      SizedBox(width: 8),
+                      Expanded(child: Text('Add Label / Endorse')),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: isMuted ? 'unmute' : 'mute',
+                  child: Row(
+                    children: [
+                      Icon(
+                        isMuted ? Icons.volume_up_outlined : Icons.block_outlined,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(isMuted ? 'Unmute User' : 'Mute / Block User'),
+                      ),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'report',
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.flag_outlined,
+                        size: 18,
+                        color: theme.colorScheme.error,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Report Account',
+                          style: TextStyle(color: theme.colorScheme.error),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ];
+            },
+          ),
+        ],
       ),
       body: Column(
         children: [

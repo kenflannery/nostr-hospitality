@@ -2,8 +2,10 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:ndk/entities.dart';
+import '../models/community_label.dart';
 import '../models/hospitality_listing.dart';
 import '../models/interaction_reference.dart';
+import '../models/moderation_models.dart';
 import '../models/travel_profile.dart';
 import '../models/user_profile.dart';
 
@@ -59,6 +61,18 @@ class RawEventViewerDialog extends StatelessWidget {
       return _extractEventMap(nip01);
     } else if (ev is UserProfile) {
       final nip01 = ev.toNip01Event();
+      return _extractEventMap(nip01);
+    } else if (ev is CommunityLabel) {
+      final nip01 = ev.toNip01Event(authorPubkey: ev.authorPubkey);
+      return _extractEventMap(nip01);
+    } else if (ev is ReportEvent) {
+      final nip01 = ev.toNip01Event(authorPubkey: ev.authorPubkey);
+      return _extractEventMap(nip01);
+    } else if (ev is MuteList) {
+      final nip01 = ev.toNip01Event(authorPubkey: '');
+      return _extractEventMap(nip01);
+    } else if (ev is CautionaryTagSet) {
+      final nip01 = ev.toNip01Event(authorPubkey: '');
       return _extractEventMap(nip01);
     } else if (ev is Map<String, dynamic>) {
       return ev;

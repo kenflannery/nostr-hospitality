@@ -30,6 +30,10 @@ The app is the **reference implementation** establishing open Nostr protocol sta
 | `30602` | Travel & Community Profile (Draft NIP) | Parameterized profile: nickname, languages, locations (origin/home/current), and NIP-39 identity links | [`nips/travel-community-profile.md`](nips/travel-community-profile.md) |
 | `30402` | NIP-99: Hospitality Classified Listings | Addressable hospitality hosting offers, stay requests, dates (`start`/`end`), and preferences | [`nips/hospitality-listings.md`](nips/hospitality-listings.md) |
 | `7654` | Interaction References (Draft NIP) | Portable interpersonal references, reviews, and historical interaction statements | [`nips/interaction-references.md`](nips/interaction-references.md) |
+| `1985` | NIP-32: Community Labeling | Standalone trait endorsements, lifestyle vibes, and community advisories | [`nips/community-labeling-and-safety.md`](nips/community-labeling-and-safety.md) |
+| `1984` | NIP-56: Reporting | Decentralized reports for pubkeys and specific events (spam, nudity, illegal, etc.) | [NIP-56](https://github.com/nostr-protocol/nips/blob/master/56.md) |
+| `10000` | NIP-51: Mute List | Replaceable personal mute/block list syncing across all Nostr clients | [NIP-51](https://github.com/nostr-protocol/nips/blob/master/51.md) |
+| `30015` | NIP-51: Interest Sets | Parameterized tag sets for user-customizable cautionary tag dictionaries | [NIP-51](https://github.com/nostr-protocol/nips/blob/master/51.md) |
 | `1059` / `13` / `14` | NIP-17 / NIP-59 Private Messaging | Gift-wrapped end-to-end encrypted direct messaging | [NIP-17](https://github.com/nostr-protocol/nips/blob/master/17.md) / [NIP-59](https://github.com/nostr-protocol/nips/blob/master/59.md) |
 | `10050` / `10002` | NIP-17 / NIP-65 Relay Lists | Outbox and DM relay discoverability | [NIP-65](https://github.com/nostr-protocol/nips/blob/master/65.md) |
 

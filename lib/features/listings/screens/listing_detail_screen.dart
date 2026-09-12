@@ -10,6 +10,8 @@ import '../../../models/hospitality_listing.dart';
 import '../../../widgets/raw_event_viewer_dialog.dart';
 import '../../../widgets/user_avatar.dart';
 import '../../../core/navigation/app_router.dart';
+import '../../moderation/widgets/report_dialog.dart';
+import '../../profile/widgets/community_label_dialog.dart';
 
 /// Detailed view of a NIP-99 (Kind 30402) Hospitality Hosting Offer or Stay Request.
 class ListingDetailScreen extends ConsumerWidget {
@@ -280,6 +282,55 @@ class ListingDetailScreen extends ConsumerWidget {
               icon: const Icon(Icons.edit_outlined),
               tooltip: listing.isRequest ? 'Edit Request' : 'Edit Offer',
               onPressed: () => AppRouter.toEditListing(context, listing),
+            )
+          else
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert_rounded),
+              tooltip: 'More actions',
+              onSelected: (value) {
+                if (value == 'report') {
+                  showReportDialog(
+                    context,
+                    targetPubkey: listing.authorPubkey,
+                    targetEventId: listing.eventId,
+                    targetDisplayName: listing.title,
+                  );
+                } else if (value == 'label') {
+                  showAddCommunityLabelDialog(
+                    context,
+                    subjectPubkey: listing.authorPubkey,
+                    subjectName: listing.title,
+                    targetEventId: listing.eventId,
+                  );
+                }
+              },
+              itemBuilder: (context) => [
+                const PopupMenuItem(
+                  value: 'label',
+                  child: Row(
+                    children: [
+                      Icon(Icons.label_outline_rounded, size: 18),
+                      SizedBox(width: 8),
+                      Expanded(child: Text('Add Label to Author')),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'report',
+                  child: Row(
+                    children: [
+                      Icon(Icons.flag_outlined, size: 18, color: theme.colorScheme.error),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Report Listing',
+                          style: TextStyle(color: theme.colorScheme.error),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
         ],
       ),

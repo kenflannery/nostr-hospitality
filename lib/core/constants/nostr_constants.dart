@@ -27,8 +27,20 @@ class NostrConstants {
   /// Kind 14: Rumor / Private Direct Message (NIP-17)
   static const int rumorKind = 14;
 
+  /// Kind 1984: Reporting (NIP-56)
+  static const int reportKind = 1984;
+
+  /// Kind 1985: Event & Pubkey Labeling (NIP-32)
+  static const int labelKind = 1985;
+
+  /// Kind 10000: Mute List (NIP-51)
+  static const int muteListKind = 10000;
+
   /// Kind 10002: Relay list metadata (NIP-65)
   static const int relayListKind = 10002;
+
+  /// Kind 30015: Interest / Topic / Tag Set (NIP-51)
+  static const int interestSetKind = 30015;
 
   // --- Tag Names ---
   static const String tagP = 'p';
@@ -37,6 +49,8 @@ class NostrConstants {
   static const String tagD = 'd';
   static const String tagT = 't';
   static const String tagG = 'g';
+  static const String tagL = 'L';
+  static const String tagSmallL = 'l';
   static const String tagTitle = 'title';
   static const String tagSummary = 'summary';
   static const String tagLocation = 'location';
@@ -114,6 +128,59 @@ class NostrConstants {
     sentimentNeutral,
     sentimentNegative,
   ];
+
+  // --- NIP-56 Reporting Categories ---
+  static const String reportSpam = 'spam';
+  static const String reportNudity = 'nudity';
+  static const String reportProfanity = 'profanity';
+  static const String reportIllegal = 'illegal';
+  static const String reportImpersonation = 'impersonation';
+  static const String reportOther = 'other';
+
+  static const List<String> standardReportTypes = [
+    reportSpam,
+    reportNudity,
+    reportProfanity,
+    reportIllegal,
+    reportImpersonation,
+    reportOther,
+  ];
+
+  // --- NIP-32 Community Labeling Conventions ---
+  static const String labelNamespaceTopic = '#t';
+
+  /// Built-in general/lifestyle suggested tags for quick endorsement
+  static const List<String> defaultGeneralTags = [
+    'great_cook',
+    'clean',
+    'communicative',
+    'inspiring',
+    'night_owl',
+    'early_riser',
+    'beer_drinker',
+    'social',
+    'independent',
+    'quiet_space',
+    'bikepacker',
+    'local_guide',
+  ];
+
+  /// Built-in cautionary/boundary tags (can be customized via Kind 30015)
+  static const List<String> defaultCautionaryTags = [
+    'creepy',
+    'thief',
+    'unresponsive',
+    'cancelled_last_minute',
+    'aggressive',
+    'demanded_cash',
+    'boundary_issues',
+    'messy',
+    'unsafe',
+    'scam',
+  ];
+
+  /// Standard identifier for the user's custom cautionary tags interest set (Kind 30015)
+  static const String cautionaryTagsSetDTag = 'hospitality-cautionary-tags';
 
   // --- Default Bootstrap Relays ---
   static const List<String> defaultRelays = [

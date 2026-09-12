@@ -13,6 +13,9 @@ import '../../../widgets/raw_event_viewer_dialog.dart';
 import '../../../widgets/user_avatar.dart';
 import '../../references/widgets/reference_card.dart';
 import '../../../core/navigation/app_router.dart';
+import '../widgets/community_label_dialog.dart';
+import '../widgets/community_labels_section.dart';
+import '../../moderation/widgets/report_dialog.dart';
 
 /// User Profile Screen displaying Kind 0 metadata, Kind 30602 Travel Profile,
 /// Kind 30402 hosting offer, and Kind 7654 references.
@@ -30,6 +33,9 @@ class ProfileScreen extends ConsumerWidget {
     final targetPubkey = resolvedPubkey ?? authState?.pubkey;
     final isOwnProfile = pubkey == null ||
         (targetPubkey != null && targetPubkey == authState?.pubkey);
+    final isMuted = targetPubkey != null
+        ? ref.watch(isPubkeyMutedProvider(targetPubkey))
+        : false;
 
     if (targetPubkey == null ||
         (isOwnProfile && !(authState?.isAuthenticated ?? false))) {
@@ -147,7 +153,7 @@ class ProfileScreen extends ConsumerWidget {
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert_rounded),
             tooltip: 'More options & Developer data',
-            onSelected: (value) {
+            onSelected: (value) async {
               if (value == 'raw_kind0') {
                 showRawEventDialog(
                   context,
@@ -169,9 +175,90 @@ class ProfileScreen extends ConsumerWidget {
                   event: hostingOffer,
                   description: 'NIP-99 Classified Listing Event',
                 );
+              } else if (value == 'add_label') {
+                showAddCommunityLabelDialog(
+                  context,
+                  subjectPubkey: targetPubkey,
+                  subjectName: primaryName,
+                );
+              } else if (value == 'mute') {
+                final mod = ref.read(moderationServiceProvider);
+                await mod.mutePubkey(targetPubkey);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Muted $primaryName'),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              } else if (value == 'unmute') {
+                final mod = ref.read(moderationServiceProvider);
+                await mod.unmutePubkey(targetPubkey);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Unmuted $primaryName'),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              } else if (value == 'report') {
+                showReportDialog(
+                  context,
+                  targetPubkey: targetPubkey,
+                  targetDisplayName: primaryName,
+                );
               }
             },
             itemBuilder: (context) => [
+              if (!isOwnProfile) ...[
+                const PopupMenuItem(
+                  value: 'add_label',
+                  child: Row(
+                    children: [
+                      Icon(Icons.label_outline_rounded, size: 18),
+                      SizedBox(width: 8),
+                      Expanded(child: Text('Add Label / Endorse')),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: isMuted ? 'unmute' : 'mute',
+                  child: Row(
+                    children: [
+                      Icon(
+                        isMuted ? Icons.volume_up_outlined : Icons.block_outlined,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(isMuted ? 'Unmute User' : 'Mute / Block User'),
+                      ),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'report',
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.flag_outlined,
+                        size: 18,
+                        color: theme.colorScheme.error,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Report Account',
+                          style: TextStyle(color: theme.colorScheme.error),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const PopupMenuDivider(),
+              ],
               const PopupMenuItem(
                 value: 'raw_kind0',
                 child: Row(
@@ -217,6 +304,7 @@ class ProfileScreen extends ConsumerWidget {
           ref.invalidate(authorListingsStreamProvider(targetPubkey));
           ref.invalidate(userReferenceSummaryProvider(targetPubkey));
           ref.invalidate(userReferencesStreamProvider(targetPubkey));
+          ref.invalidate(userLabelsStreamProvider(targetPubkey));
         },
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -459,9 +547,44 @@ class ProfileScreen extends ConsumerWidget {
                       ),
                     ],
 
+                    if (isMuted && !isOwnProfile) ...[
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.errorContainer.withValues(alpha: 0.3),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: theme.colorScheme.error.withValues(alpha: 0.4)),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.block_rounded, size: 18, color: theme.colorScheme.error),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'You have muted this account. Their content is hidden from your feeds.',
+                                style: TextStyle(fontSize: 12, color: theme.colorScheme.error),
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: () async {
+                                await ref.read(moderationServiceProvider).unmutePubkey(targetPubkey);
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Unmuted $primaryName')),
+                                  );
+                                }
+                              },
+                              child: const Text('Unmute'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+
                     const SizedBox(height: 16),
 
-                    // Action Buttons (Edit Profile / Message / Reference)
+                    // Action Buttons (Edit Profile / Message / Reference / Add Label)
                     Row(
                       children: [
                         if (isOwnProfile) ...[
@@ -485,7 +608,7 @@ class ProfileScreen extends ConsumerWidget {
                               label: const Text('Message'),
                             ),
                           ),
-                          const SizedBox(width: 12),
+                          const SizedBox(width: 8),
                           Expanded(
                             child: OutlinedButton.icon(
                               onPressed: () => AppRouter.toNewReference(
@@ -496,6 +619,16 @@ class ProfileScreen extends ConsumerWidget {
                               icon: const Icon(Icons.rate_review_outlined,
                                   size: 18),
                               label: const Text('Reference'),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton.outlined(
+                            tooltip: 'Add Community Label',
+                            icon: const Icon(Icons.label_outline_rounded),
+                            onPressed: () => showAddCommunityLabelDialog(
+                              context,
+                              subjectPubkey: targetPubkey,
+                              subjectName: primaryName,
                             ),
                           ),
                         ],
@@ -1026,6 +1159,17 @@ class ProfileScreen extends ConsumerWidget {
                           ),
                         ),
                       ),
+
+                    const SizedBox(height: 28),
+                    const Divider(),
+                    const SizedBox(height: 16),
+
+                    // --- SECTION: Community Labels (NIP-32) ---
+                    CommunityLabelsSection(
+                      subjectPubkey: targetPubkey,
+                      subjectName: primaryName,
+                      isOwnProfile: isOwnProfile,
+                    ),
 
                     const SizedBox(height: 28),
                     const Divider(),
