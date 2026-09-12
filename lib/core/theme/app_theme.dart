@@ -4,10 +4,12 @@ import 'package:flutter/material.dart';
 class AppTheme {
   AppTheme._();
 
-  // Brand Colors: Sage & Lavender
-  static const Color primarySage = Color(0xFF537A65);
+  // Brand Colors: Sage, Lavender, Hearth Amber, and Slate
+  static const Color primarySage = Color(0xFF4B725D);
   static const Color secondaryLavender = Color(0xFF8675B3);
   static const Color tertiarySlate = Color(0xFF556877);
+  static const Color hearthAmber = Color(0xFFD97736);
+  static const Color warmTerracotta = Color(0xFFC86D48);
 
   static const Color positiveGreen = Color(0xFF388E3C);
   static const Color neutralGrey = Color(0xFF5F6368);
@@ -20,10 +22,12 @@ class AppTheme {
       secondary: secondaryLavender,
       tertiary: tertiarySlate,
       brightness: Brightness.light,
-      surface: const Color(0xFFF9FAF9),
-      surfaceContainerLowest: Colors.white,
-      surfaceContainerLow: const Color(0xFFF1F4F2),
-      surfaceContainer: const Color(0xFFE9ECE9),
+      surface: const Color(0xFFF4F5F1), // Warm organic canvas/light oat tone
+      surfaceContainerLowest: Colors.white, // Pure white for elevated cards
+      surfaceContainerLow: const Color(0xFFFBFBFA), // Soft cream sub-containers
+      surfaceContainer: const Color(0xFFECEFEA),
+      surfaceContainerHigh: const Color(0xFFE3E7E0),
+      surfaceContainerHighest: const Color(0xFFD9DED5),
     );
 
     return ThemeData(
@@ -42,11 +46,12 @@ class AppTheme {
         ),
       ),
       cardTheme: CardThemeData(
+        color: Colors.white,
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
           side: BorderSide(
-            color: colorScheme.outlineVariant.withValues(alpha: 0.4),
+            color: colorScheme.outlineVariant.withValues(alpha: 0.35),
             width: 1,
           ),
         ),
@@ -54,6 +59,7 @@ class AppTheme {
       ),
       navigationBarTheme: NavigationBarThemeData(
         elevation: 0,
+        backgroundColor: colorScheme.surface,
         indicatorColor: primarySage.withValues(alpha: 0.15),
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
       ),

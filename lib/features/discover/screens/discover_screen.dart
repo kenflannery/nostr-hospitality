@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 import '../../../core/providers/app_providers.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/map_tile_config.dart';
+import '../../../core/theme/procedural_art.dart';
 import '../../../core/utils/date_formatter.dart';
 import '../../../core/utils/geohash_helper.dart';
 import '../../../models/hospitality_listing.dart';
@@ -341,10 +343,12 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Material(
-                  elevation: 3,
-                  shadowColor: Colors.black.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(16),
-                  color: theme.colorScheme.surface,
+                  elevation: 4,
+                  shadowColor: Colors.black.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(18),
+                  color: theme.colorScheme.brightness == Brightness.light
+                      ? Colors.white
+                      : theme.colorScheme.surfaceContainer,
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -1019,167 +1023,320 @@ class _ListingFeedCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final authorProfile = ref.watch(userProfileProvider(listing.authorPubkey)).valueOrNull;
+    final hasImages = listing.images.isNotEmpty;
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 14),
+      elevation: 0,
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Host / Traveler Info Header
-              Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Top Cover: Real Photo or Procedural Topographic Mini-Hero Banner
+            if (hasImages)
+              Image.network(
+                listing.images.first,
+                width: double.infinity,
+                height: 140,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => _buildDecorativeMiniHero(theme),
+              )
+            else
+              _buildDecorativeMiniHero(theme),
+
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  GestureDetector(
-                    onTap: () => AppRouter.toProfile(context, listing.authorPubkey),
-                    child: UserAvatar(
-                      imageUrl: authorProfile?.picture,
-                      nameOrPubkey: authorProfile?.bestName ?? listing.authorPubkey,
-                      radius: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        GestureDetector(
-                          onTap: () => AppRouter.toProfile(context, listing.authorPubkey),
-                          child: Text(
-                            authorProfile?.bestName ?? (listing.isRequest ? 'Traveler' : 'Host'),
-                            style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
-                          ),
+                  // Host / Traveler Info Header
+                  Row(
+                    children: [
+                      GestureDetector(
+                        onTap: () => AppRouter.toProfile(context, listing.authorPubkey),
+                        child: UserAvatar(
+                          imageUrl: authorProfile?.picture,
+                          nameOrPubkey: authorProfile?.bestName ?? listing.authorPubkey,
+                          pubkey: listing.authorPubkey,
+                          radius: 18,
                         ),
-                        Row(
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(Icons.location_on_outlined, size: 13, color: theme.colorScheme.outline),
-                            const SizedBox(width: 2),
-                            Expanded(
+                            GestureDetector(
+                              onTap: () => AppRouter.toProfile(context, listing.authorPubkey),
                               child: Text(
-                                listing.location,
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.colorScheme.outline,
+                                authorProfile?.bestName ?? (listing.isRequest ? 'Traveler' : 'Host'),
+                                style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                            Row(
+                              children: [
+                                Icon(Icons.location_on_outlined, size: 13, color: theme.colorScheme.outline),
+                                const SizedBox(width: 2),
+                                Expanded(
+                                  child: Text(
+                                    listing.location,
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: theme.colorScheme.outline,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
-                                overflow: TextOverflow.ellipsis,
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: listing.isRequest
+                              ? Colors.teal.withValues(alpha: 0.12)
+                              : theme.colorScheme.primaryContainer.withValues(alpha: 0.45),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              listing.isRequest ? Icons.luggage_rounded : Icons.roofing_rounded,
+                              size: 13,
+                              color: listing.isRequest ? Colors.teal : theme.colorScheme.primary,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              listing.isRequest ? 'Request' : 'Offer',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: listing.isRequest ? Colors.teal : theme.colorScheme.primary,
                               ),
                             ),
                           ],
                         ),
-                      ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Title
+                  Text(
+                    listing.title,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: -0.2,
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: listing.isRequest
-                          ? Colors.teal.withValues(alpha: 0.12)
-                          : theme.colorScheme.primaryContainer.withValues(alpha: 0.4),
-                      borderRadius: BorderRadius.circular(8),
+                  const SizedBox(height: 4),
+
+                  // Summary
+                  Text(
+                    listing.summary,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      height: 1.35,
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          listing.isRequest ? Icons.luggage_rounded : Icons.roofing_rounded,
-                          size: 13,
-                          color: listing.isRequest ? Colors.teal : theme.colorScheme.primary,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          listing.isRequest ? 'Request' : 'Offer',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: listing.isRequest ? Colors.teal : theme.colorScheme.primary,
+                  ),
+
+                  // Structured Amenity & Travel Info Pills
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
+                      // Date Range (if constrained)
+                      if (listing.isDateConstrained)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                          decoration: BoxDecoration(
+                            color: Colors.teal.withValues(alpha: 0.09),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.teal.withValues(alpha: 0.25)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.calendar_today_rounded, size: 12, color: Colors.teal[800]),
+                              const SizedBox(width: 4),
+                              Text(
+                                DateFormatter.formatDateRange(listing.startDate, listing.endDate),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.teal[800],
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ],
-                    ),
+
+                      // Max Guests / Party
+                      if (listing.maxGuests != null)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.surfaceContainerHigh.withValues(alpha: 0.6),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.people_outline_rounded, size: 12, color: theme.colorScheme.onSurfaceVariant),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${listing.isRequest ? "Party" : "Max"}: ${listing.maxGuests}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                      // Sleeping Arrangement
+                      if (listing.sleepingArrangement != null)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primaryContainer.withValues(alpha: 0.25),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.bed_rounded, size: 12, color: theme.colorScheme.primary),
+                              const SizedBox(width: 4),
+                              Text(
+                                listing.sleepingArrangement!.replaceAll('_', ' '),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: theme.colorScheme.primary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                      // Pets Allowed / Welcome
+                      if (listing.hostsWithPets == true || listing.hasPets == true)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.surfaceContainerHigh.withValues(alpha: 0.6),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.pets_rounded, size: 12, color: theme.colorScheme.onSurfaceVariant),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Pets welcome',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                      // Wheelchair Accessible
+                      if (listing.wheelchairAccessible == true)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.surfaceContainerHigh.withValues(alpha: 0.6),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.accessible_rounded, size: 12, color: theme.colorScheme.onSurfaceVariant),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Wheelchair accessible',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-              // Title
-              Text(
-                listing.title,
-                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+  Widget _buildDecorativeMiniHero(ThemeData theme) {
+    return Container(
+      width: double.infinity,
+      height: 48,
+      decoration: BoxDecoration(
+        gradient: ProceduralArt.getGradient(
+          listing.authorPubkey + listing.location,
+          opacity: 0.88,
+        ),
+      ),
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: CustomPaint(
+              painter: TopographicContourPainter(
+                seed: listing.authorPubkey,
+                strokeColor: Colors.white,
               ),
-              const SizedBox(height: 4),
-
-              // Summary
-              Text(
-                listing.summary,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 12.0),
+            child: Row(
+              children: [
+                Icon(
+                  listing.isRequest ? Icons.luggage_rounded : Icons.roofing_rounded,
+                  size: 15,
+                  color: Colors.white,
                 ),
-              ),
-
-              // Dates & Guest Info
-              if (listing.isDateConstrained || listing.maxGuests != null) ...[
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 6,
-                  children: [
-                    if (listing.isDateConstrained)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: Colors.teal.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: Colors.teal.withValues(alpha: 0.25)),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.calendar_today_rounded, size: 12, color: Colors.teal[800]),
-                            const SizedBox(width: 4),
-                            Text(
-                              DateFormatter.formatDateRange(listing.startDate, listing.endDate),
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.teal[800],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    if (listing.maxGuests != null)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.surfaceContainerHigh,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.people_outline_rounded, size: 12, color: theme.colorScheme.onSurfaceVariant),
-                            const SizedBox(width: 4),
-                            Text(
-                              '${listing.isRequest ? "Party" : "Max"}: ${listing.maxGuests}',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                  ],
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    listing.isRequest
+                        ? 'Stay Request in ${listing.location}'
+                        : 'Hospitality Offer in ${listing.location}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                      letterSpacing: 0.1,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ],
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

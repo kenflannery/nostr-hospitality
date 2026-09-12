@@ -9,6 +9,7 @@ import '../../../core/utils/date_formatter.dart';
 import '../../../core/utils/nip19_utils.dart';
 import '../../../models/travel_profile.dart';
 import '../../../models/user_profile.dart';
+import '../../../widgets/profile_banner.dart';
 import '../../../widgets/raw_event_viewer_dialog.dart';
 import '../../../widgets/user_avatar.dart';
 import '../../references/widgets/reference_card.dart';
@@ -383,39 +384,51 @@ class ProfileScreen extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Banner Image if present
-              if (profile.banner != null && profile.banner!.isNotEmpty)
-                Image.network(
-                  profile.banner!,
-                  width: double.infinity,
-                  height: 140,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                ),
+              // Hero Banner with pubkey-deterministic fallback & overlapping avatar
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  ProfileBanner(
+                    bannerUrl: profile.banner,
+                    pubkey: targetPubkey,
+                    height: 155,
+                  ),
+                  Positioned(
+                    bottom: -38,
+                    left: 20,
+                    child: UserAvatar(
+                      imageUrl: profile.picture,
+                      nameOrPubkey: primaryName,
+                      pubkey: targetPubkey,
+                      radius: 40,
+                      borderWidth: 3.5,
+                      borderColor: theme.colorScheme.surface,
+                      hasShadow: true,
+                    ),
+                  ),
+                ],
+              ),
 
               Padding(
-                padding: const EdgeInsets.all(20.0),
+                padding: const EdgeInsets.symmetric(horizontal: 20.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Header: Avatar, Name, NIP-05, Key
+                    const SizedBox(height: 48), // Space for bottom half of overlapping avatar
+
+                    // User Identity Header
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        UserAvatar(
-                          imageUrl: profile.picture,
-                          nameOrPubkey: primaryName,
-                          radius: 36,
-                        ),
-                        const SizedBox(width: 16),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
                                 primaryName,
-                                style: theme.textTheme.titleLarge?.copyWith(
+                                style: theme.textTheme.headlineSmall?.copyWith(
                                   fontWeight: FontWeight.bold,
+                                  letterSpacing: -0.3,
                                 ),
                               ),
                               if (showKind0Subtitle) ...[
@@ -430,7 +443,7 @@ class ProfileScreen extends ConsumerWidget {
                               ],
                               if (profile.nip05 != null &&
                                   profile.nip05!.isNotEmpty) ...[
-                                const SizedBox(height: 2),
+                                const SizedBox(height: 4),
                                 Row(
                                   children: [
                                     Icon(
@@ -472,7 +485,8 @@ class ProfileScreen extends ConsumerWidget {
                                     padding: EdgeInsets.zero,
                                     constraints: const BoxConstraints(),
                                     onPressed: () {
-                                      Nip19Helper.shortenKey(profile.npub);
+                                      Clipboard.setData(
+                                          ClipboardData(text: profile.npub));
                                       ScaffoldMessenger.of(context)
                                           .showSnackBar(
                                         const SnackBar(
@@ -483,136 +497,100 @@ class ProfileScreen extends ConsumerWidget {
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 6),
-                              Material(
-                                color: Colors.transparent,
-                                child: InkWell(
-                                  onTap: () => showFollowingDialog(
-                                    context,
-                                    targetPubkey: targetPubkey,
-                                    targetName: primaryName,
-                                  ),
-                                  borderRadius: BorderRadius.circular(6),
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 2.0, horizontal: 2.0),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(
-                                          Icons.people_alt_outlined,
-                                          size: 15,
-                                          color: theme.colorScheme.primary,
-                                        ),
-                                        const SizedBox(width: 5),
-                                        Text(
-                                          followingCount != null
-                                              ? 'Following $followingCount'
-                                              : 'Following...',
-                                          style: theme.textTheme.bodyMedium?.copyWith(
-                                            color: theme.colorScheme.primary,
-                                            fontWeight: FontWeight.w600,
-                                            decoration: TextDecoration.underline,
-                                            decorationColor: theme.colorScheme.primary
-                                                .withValues(alpha: 0.4),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
                             ],
                           ),
                         ),
                       ],
                     ),
 
-                    // Badges: Active on Nostr, Traveler Nickname & Current Location
-                    if (lastActive != null ||
-                        (travelProfile != null &&
-                            (travelProfile.name != null ||
-                                travelProfile.formattedCurrent != null))) ...[
-                      const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 6,
-                        children: [
-                          if (lastActive != null)
-                            Material(
-                              color: Colors.transparent,
-                              child: InkWell(
-                                onTap: () => _showActivityExplanationDialog(
-                                  context,
-                                  lastActive,
-                                  theme,
-                                ),
-                                borderRadius: BorderRadius.circular(16),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 10, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: theme
-                                        .colorScheme.surfaceContainerHighest
-                                        .withValues(alpha: 0.6),
-                                    borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(
-                                      color: theme.colorScheme.outlineVariant
-                                          .withValues(alpha: 0.5),
-                                    ),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        Icons.bolt_rounded,
-                                        size: 14,
-                                        color: theme.colorScheme.primary,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        'Active on Nostr ${DateFormatter.formatRelative(lastActive)}',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w500,
-                                          color: theme
-                                              .colorScheme.onSurfaceVariant,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Icon(
-                                        Icons.info_outline_rounded,
-                                        size: 12,
-                                        color: theme.colorScheme.outline,
-                                      ),
-                                    ],
-                                  ),
+                    const SizedBox(height: 12),
+
+                    // Quick-Glance Stat Pills (References, Following, Origin/Current, Languages, Nostr Activity)
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        // Reference Count / Reputation Pill
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: summary != null && summary.totalCount > 0
+                                ? AppTheme.hearthAmber.withValues(alpha: 0.12)
+                                : theme.colorScheme.surfaceContainerHighest
+                                    .withValues(alpha: 0.45),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: summary != null && summary.totalCount > 0
+                                  ? AppTheme.hearthAmber.withValues(alpha: 0.3)
+                                  : theme.colorScheme.outlineVariant
+                                      .withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                summary != null && summary.totalCount > 0
+                                    ? Icons.star_rounded
+                                    : Icons.star_outline_rounded,
+                                size: 15,
+                                color: summary != null && summary.totalCount > 0
+                                    ? AppTheme.hearthAmber
+                                    : theme.colorScheme.outline,
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                summary != null && summary.totalCount > 0
+                                    ? '${summary.totalCount} Ref${summary.totalCount == 1 ? "" : "s"} (${summary.positiveCount} pos)'
+                                    : 'No references yet',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: summary != null && summary.totalCount > 0
+                                      ? AppTheme.hearthAmber
+                                      : theme.colorScheme.onSurfaceVariant,
                                 ),
                               ),
+                            ],
+                          ),
+                        ),
+
+                        // Following Pill
+                        Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: () => showFollowingDialog(
+                              context,
+                              targetPubkey: targetPubkey,
+                              targetName: primaryName,
                             ),
-                          if (travelProfile != null &&
-                              travelProfile.name != null &&
-                              travelProfile.name!.isNotEmpty)
-                            Container(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 4),
+                                  horizontal: 10, vertical: 5),
                               decoration: BoxDecoration(
                                 color: theme.colorScheme.primaryContainer
-                                    .withValues(alpha: 0.4),
-                                borderRadius: BorderRadius.circular(16),
+                                    .withValues(alpha: 0.35),
+                                borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
-                                    color: theme.colorScheme.primary
-                                        .withValues(alpha: 0.3)),
+                                  color: theme.colorScheme.primary
+                                      .withValues(alpha: 0.25),
+                                ),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.badge_outlined,
-                                      size: 14,
-                                      color: theme.colorScheme.primary),
-                                  const SizedBox(width: 4),
+                                  Icon(
+                                    Icons.people_alt_outlined,
+                                    size: 14,
+                                    color: theme.colorScheme.primary,
+                                  ),
+                                  const SizedBox(width: 5),
                                   Text(
-                                    travelProfile.name!,
+                                    followingCount != null
+                                        ? '$followingCount Following'
+                                        : 'Following...',
                                     style: TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.bold,
@@ -622,41 +600,142 @@ class ProfileScreen extends ConsumerWidget {
                                 ],
                               ),
                             ),
-                          if (travelProfile != null &&
-                              travelProfile.formattedCurrent != null)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: theme.colorScheme.secondaryContainer
-                                    .withValues(alpha: 0.4),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                    color: theme.colorScheme.secondary
-                                        .withValues(alpha: 0.3)),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.explore_outlined,
-                                      size: 14,
-                                      color: theme.colorScheme.secondary),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    'In ${travelProfile.formattedCurrent}',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                      color: theme
-                                          .colorScheme.onSecondaryContainer,
-                                    ),
-                                  ),
-                                ],
+                          ),
+                        ),
+
+                        // Location Pill
+                        if (travelProfile != null &&
+                            (travelProfile.formattedCurrent != null ||
+                                travelProfile.formattedHome != null))
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.secondaryContainer
+                                  .withValues(alpha: 0.35),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: theme.colorScheme.secondary
+                                    .withValues(alpha: 0.25),
                               ),
                             ),
-                        ],
-                      ),
-                    ],
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.place_rounded,
+                                  size: 14,
+                                  color: theme.colorScheme.secondary,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  travelProfile.formattedCurrent != null
+                                      ? 'In ${travelProfile.formattedCurrent}'
+                                      : 'Home: ${travelProfile.formattedHome}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color:
+                                        theme.colorScheme.onSecondaryContainer,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                        // Languages Pill
+                        if (travelProfile != null &&
+                            travelProfile.languages.isNotEmpty)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.surfaceContainerHigh
+                                  .withValues(alpha: 0.7),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: theme.colorScheme.outlineVariant
+                                    .withValues(alpha: 0.4),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.translate_rounded,
+                                  size: 13,
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  travelProfile.languages
+                                      .map((l) => l.code.toUpperCase())
+                                      .join(', '),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                        // Active on Nostr Pill
+                        if (lastActive != null)
+                          Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              onTap: () => _showActivityExplanationDialog(
+                                context,
+                                lastActive,
+                                theme,
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 5),
+                                decoration: BoxDecoration(
+                                  color: theme
+                                      .colorScheme.surfaceContainerHighest
+                                      .withValues(alpha: 0.4),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: theme.colorScheme.outlineVariant
+                                        .withValues(alpha: 0.35),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.bolt_rounded,
+                                      size: 14,
+                                      color: theme.colorScheme.primary,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Active ${DateFormatter.formatRelative(lastActive)}',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w500,
+                                        color:
+                                            theme.colorScheme.onSurfaceVariant,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Icon(
+                                      Icons.info_outline_rounded,
+                                      size: 12,
+                                      color: theme.colorScheme.outline,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
 
                     if (isMuted && !isOwnProfile) ...[
                       Container(
