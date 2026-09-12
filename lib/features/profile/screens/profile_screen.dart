@@ -782,7 +782,7 @@ class ProfileScreen extends ConsumerWidget {
                             child: OutlinedButton.icon(
                               onPressed: () => AppRouter.toEditProfile(context, profile),
                               icon: const Icon(Icons.edit_outlined, size: 18),
-                              label: const Text('Edit Identity (Kind 0)'),
+                              label: const Text('Edit Profile'),
                             ),
                           ),
                         ] else ...[
@@ -933,7 +933,7 @@ class ProfileScreen extends ConsumerWidget {
                         if (isOwnProfile)
                           TextButton.icon(
                             onPressed: () =>
-                                AppRouter.toEditTravelProfile(context, travelProfile),
+                                AppRouter.toEditProfile(context, profile),
                             icon: Icon(
                                 travelProfile == null
                                     ? Icons.add_rounded
@@ -947,7 +947,7 @@ class ProfileScreen extends ConsumerWidget {
                     const SizedBox(height: 10),
 
                     if (travelProfile != null && travelProfile.isNotEmpty)
-                      _buildTravelProfileCard(context, theme, travelProfile)
+                      _buildTravelProfileCard(context, theme, profile, travelProfile)
                     else if (isOwnProfile)
                       Card(
                         margin: EdgeInsets.zero,
@@ -973,7 +973,7 @@ class ProfileScreen extends ConsumerWidget {
                               const SizedBox(height: 12),
                               FilledButton.tonalIcon(
                                 onPressed: () =>
-                                    AppRouter.toEditTravelProfile(context, travelProfile),
+                                    AppRouter.toEditProfile(context, profile),
                                 icon:
                                     const Icon(Icons.badge_outlined, size: 16),
                                 label: const Text('Complete Travel Profile'),
@@ -1469,8 +1469,8 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildTravelProfileCard(
-      BuildContext context, ThemeData theme, TravelProfile travelProfile) {
+  Widget _buildTravelProfileCard(BuildContext context, ThemeData theme,
+      UserProfile profile, TravelProfile travelProfile) {
     return Card(
       margin: EdgeInsets.zero,
       color: theme.colorScheme.surfaceContainerLow,
@@ -1485,7 +1485,7 @@ class ProfileScreen extends ConsumerWidget {
                 travelProfile.formattedHome != null ||
                 travelProfile.formattedOrigin != null ||
                 travelProfile.gender != null ||
-                travelProfile.calculatedAge != null ||
+                profile.calculatedAge != null ||
                 travelProfile.occupation != null ||
                 travelProfile.education != null) ...[
               Wrap(
@@ -1511,9 +1511,9 @@ class ProfileScreen extends ConsumerWidget {
                         Icons.person_outline_rounded,
                         travelProfile.gender![0].toUpperCase() +
                             travelProfile.gender!.substring(1)),
-                  if (travelProfile.calculatedAge != null)
+                  if (profile.calculatedAge != null)
                     _buildInfoBadge(theme, Icons.cake_outlined,
-                        '${travelProfile.calculatedAge} yrs old'),
+                        '${profile.calculatedAge} yrs old'),
                   if (travelProfile.occupation != null)
                     _buildInfoBadge(theme, Icons.work_outline_rounded,
                         travelProfile.occupation!),

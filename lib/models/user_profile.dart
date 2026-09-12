@@ -16,6 +16,9 @@ class UserProfile {
   final String? nip05;
   final String? website;
   final String? lud16; // lightning address if present
+  final int? birthYear; // NIP-24 birthday { year, month, day }
+  final int? birthMonth;
+  final int? birthDay;
   final Map<String, dynamic> rawJson;
   final DateTime? updatedAt;
 
@@ -29,12 +32,29 @@ class UserProfile {
     this.nip05,
     this.website,
     this.lud16,
+    this.birthYear,
+    this.birthMonth,
+    this.birthDay,
     this.rawJson = const {},
     this.updatedAt,
   });
 
   /// Bech32 npub identifier
   String get npub => Nip19Helper.pubkeyToNpub(pubkey);
+
+  /// Dynamic age calculated from NIP-24 birthday (if birthYear is present)
+  int? get calculatedAge {
+    if (birthYear == null) return null;
+    final now = DateTime.now();
+    int age = now.year - birthYear!;
+    if (birthMonth != null) {
+      final day = birthDay ?? 1;
+      if (now.month < birthMonth! || (now.month == birthMonth! && now.day < day)) {
+        age -= 1;
+      }
+    }
+    return age;
+  }
 
   /// Best display name: displayName -> name -> shortened pubkey
   String get bestName {
@@ -68,6 +88,22 @@ class UserProfile {
       // Malformed content JSON
     }
 
+    int? birthYear;
+    int? birthMonth;
+    int? birthDay;
+    final birthdayRaw = json['birthday'];
+    if (birthdayRaw is Map) {
+      if (birthdayRaw['year'] != null) {
+        birthYear = int.tryParse(birthdayRaw['year'].toString());
+      }
+      if (birthdayRaw['month'] != null) {
+        birthMonth = int.tryParse(birthdayRaw['month'].toString());
+      }
+      if (birthdayRaw['day'] != null) {
+        birthDay = int.tryParse(birthdayRaw['day'].toString());
+      }
+    }
+
     return UserProfile(
       pubkey: event.pubKey,
       name: json['name'] as String?,
@@ -78,6 +114,9 @@ class UserProfile {
       nip05: json['nip05'] as String?,
       website: json['website'] as String?,
       lud16: json['lud16'] as String?,
+      birthYear: birthYear,
+      birthMonth: birthMonth,
+      birthDay: birthDay,
       rawJson: json,
       updatedAt: DateTime.fromMillisecondsSinceEpoch(event.createdAt * 1000),
     );
@@ -95,6 +134,16 @@ class UserProfile {
     if (nip05 != null) mergedJson['nip05'] = nip05;
     if (website != null) mergedJson['website'] = website;
     if (lud16 != null) mergedJson['lud16'] = lud16;
+
+    if (birthYear != null || birthMonth != null || birthDay != null) {
+      final bMap = <String, dynamic>{};
+      if (birthYear != null) bMap['year'] = birthYear;
+      if (birthMonth != null) bMap['month'] = birthMonth;
+      if (birthDay != null) bMap['day'] = birthDay;
+      mergedJson['birthday'] = bMap;
+    } else {
+      mergedJson.remove('birthday');
+    }
 
     return Nip01Event(
       pubKey: pubkey,
@@ -115,6 +164,9 @@ class UserProfile {
     String? nip05,
     String? website,
     String? lud16,
+    int? birthYear,
+    int? birthMonth,
+    int? birthDay,
     Map<String, dynamic>? rawJson,
     DateTime? updatedAt,
   }) {
@@ -128,6 +180,9 @@ class UserProfile {
       nip05: nip05 ?? this.nip05,
       website: website ?? this.website,
       lud16: lud16 ?? this.lud16,
+      birthYear: birthYear ?? this.birthYear,
+      birthMonth: birthMonth ?? this.birthMonth,
+      birthDay: birthDay ?? this.birthDay,
       rawJson: rawJson ?? this.rawJson,
       updatedAt: updatedAt ?? this.updatedAt,
     );

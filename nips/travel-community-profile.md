@@ -36,9 +36,6 @@ The event's `.content` contains the user's free-form personal travel story, phil
     // 1. Identity & Demographics (Strictly Optional & Self-Sovereign)
     ["name", "NomadAlice"],
     ["gender", "female"],
-    ["birth_year", "1995"],
-    ["birth_month", "4"],
-    ["birth_day", "12"],
     ["occupation", "Software Engineer"],
     ["education", "B.Sc. Computer Science"],
 
@@ -93,11 +90,6 @@ Addressable identifier. Defaults to `"travel-profile"`.
 
 ### `name` (OPTIONAL)
 Traveler name, nickname, or trail name (e.g. `"NomadAlice"`, `"Ken"`). Allows travelers to use a friendly first name or trail identity distinct from their formal Kind 0 identity.
-
-### `birth_year`, `birth_month`, `birth_day` (OPTIONAL)
-Self-sovereign date of birth granularity:
-- `birth_year` (e.g. `"1995"`): Preferred over static integer age to allow dynamic age calculation without going stale or disclosing exact birthdays.
-- `birth_month` (1-12) and `birth_day` (1-31): Optional tags for users who wish to provide exact birthday granularity.
 
 ### Location Tags (`origin_*`, `home_*`, `current_*`) (OPTIONAL)
 - `origin_country` & `origin_city`: Where the user grew up / cultural roots.

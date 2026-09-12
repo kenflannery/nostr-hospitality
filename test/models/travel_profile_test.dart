@@ -15,9 +15,6 @@ void main() {
           ['d', 'travel-profile'],
           ['name', 'Alice Nomad'],
           ['gender', 'female'],
-          ['birth_year', '1995'],
-          ['birth_month', '4'],
-          ['birth_day', '12'],
           ['origin_country', 'DE'],
           ['origin_city', 'Munich'],
           ['home_country', 'FR'],
@@ -50,10 +47,6 @@ void main() {
       expect(profile.name, 'Alice Nomad');
       expect(profile.bestTravelerName, 'Alice Nomad');
       expect(profile.gender, 'female');
-      expect(profile.birthYear, 1995);
-      expect(profile.birthMonth, 4);
-      expect(profile.birthDay, 12);
-      expect(profile.calculatedAge, isNotNull);
       expect(profile.originCountry, 'DE');
       expect(profile.originCity, 'Munich');
       expect(profile.formattedOrigin, 'Munich, Germany');
@@ -85,9 +78,6 @@ void main() {
         createdAt: DateTime.now(),
         name: 'DartDev',
         gender: 'non-binary',
-        birthYear: 1998,
-        birthMonth: 8,
-        birthDay: 20,
         originCountry: 'US',
         originCity: 'Seattle',
         homeCountry: 'MX',
@@ -119,15 +109,6 @@ void main() {
 
       final genderTag = event.tags.firstWhere((t) => t.isNotEmpty && t[0] == 'gender');
       expect(genderTag[1], 'non-binary');
-
-      final birthYearTag = event.tags.firstWhere((t) => t.isNotEmpty && t[0] == 'birth_year');
-      expect(birthYearTag[1], '1998');
-
-      final birthMonthTag = event.tags.firstWhere((t) => t.isNotEmpty && t[0] == 'birth_month');
-      expect(birthMonthTag[1], '8');
-
-      final birthDayTag = event.tags.firstWhere((t) => t.isNotEmpty && t[0] == 'birth_day');
-      expect(birthDayTag[1], '20');
 
       final originCountryTag = event.tags.firstWhere((t) => t.isNotEmpty && t[0] == 'origin_country');
       expect(originCountryTag[1], 'US');

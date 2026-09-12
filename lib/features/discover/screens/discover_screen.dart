@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 import '../../../core/providers/app_providers.dart';
-import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/map_tile_config.dart';
 import '../../../core/theme/procedural_art.dart';
 import '../../../core/utils/date_formatter.dart';

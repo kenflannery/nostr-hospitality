@@ -40,7 +40,7 @@ Whenever any Nostr Event Kind, tag name, allowed value, or protocol structure is
 ### Kind 30602: Travel & Community Profile (Draft NIP)
 - Parameterized addressable event (`d: travel-profile`).
 - Isolates travel domains from Kind 0 so social clients don't overwrite them.
-- Tags: `name` (preferred traveler name/nickname/trail name), `language` (code, proficiency level), `origin_country`/`origin_city`, `home_country`/`home_city`, `current_country`/`current_city` (ISO 3166-1 alpha-2 uppercase country codes), `g` (cascading geohashes 3-5 chars for active presence location), `gender`, `birth_year`/`birth_month`/`birth_day` (allows dynamic age calculation), `occupation`, `education`, `t` (interests/hobbies/activities), `image` (travel photos), `network` (NIP-39 linked accounts: couchsurfing, trustroots, couchers, bewelcome, warmup, etc.).
+- Tags: `name` (preferred traveler name/nickname/trail name), `language` (code, proficiency level), `origin_country`/`origin_city`, `home_country`/`home_city`, `current_country`/`current_city` (ISO 3166-1 alpha-2 uppercase country codes), `g` (cascading geohashes 3-5 chars for active presence location), `gender`, `occupation`, `education`, `t` (interests/hobbies/activities), `image` (travel photos), `network` (NIP-39 linked accounts: couchsurfing, trustroots, couchers, bewelcome, warmup, etc.). (Birth dates & age calculation are managed via NIP-24 in Kind 0).
 
 ### Kind 7654: Interaction References (Draft NIP)
 - Regular, historical, non-replaceable event.

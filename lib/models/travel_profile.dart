@@ -120,9 +120,6 @@ class TravelProfile {
   // Travel Identity & Demographics (Self-Sovereign & Strictly Optional)
   final String? name; // Traveler nickname / trail name / preferred travel name
   final String? gender;
-  final int? birthYear;
-  final int? birthMonth; // 1 - 12
-  final int? birthDay; // 1 - 31
 
   // Geographical Background & Mobility
   final String? originCountry; // ISO 3166-1 alpha-2 code (e.g. "DE")
@@ -158,9 +155,6 @@ class TravelProfile {
     required this.createdAt,
     this.name,
     this.gender,
-    this.birthYear,
-    this.birthMonth,
-    this.birthDay,
     this.originCountry,
     this.originCity,
     this.homeCountry,
@@ -191,21 +185,6 @@ class TravelProfile {
   /// Primary / featured travel photo (first image tag in order)
   String? get primaryImage => images.isNotEmpty ? images.first : null;
 
-  /// Calculates dynamic age based on birth year (and optional birthMonth / birthDay).
-  int? get calculatedAge {
-    if (birthYear == null) return null;
-    final now = DateTime.now();
-    int age = now.year - birthYear!;
-
-    if (birthMonth != null) {
-      final day = birthDay ?? 1;
-      if (now.month < birthMonth! || (now.month == birthMonth! && now.day < day)) {
-        age -= 1;
-      }
-    }
-    return age;
-  }
-
   /// Whether the profile contains any meaningful data.
   bool get isNotEmpty =>
       content.trim().isNotEmpty ||
@@ -214,7 +193,6 @@ class TravelProfile {
       interests.isNotEmpty ||
       externalIdentities.isNotEmpty ||
       gender != null ||
-      birthYear != null ||
       originCountry != null ||
       homeCountry != null ||
       currentCountry != null ||
@@ -257,9 +235,6 @@ class TravelProfile {
     String dTag = 'travel-profile';
     String? name;
     String? gender;
-    int? birthYear;
-    int? birthMonth;
-    int? birthDay;
     String? originCountry;
     String? originCity;
     String? homeCountry;
@@ -285,12 +260,6 @@ class TravelProfile {
         name = tag[1].trim();
       } else if (key == 'gender' && tag.length > 1) {
         gender = tag[1].trim();
-      } else if (key == 'birth_year' && tag.length > 1) {
-        birthYear = int.tryParse(tag[1].trim());
-      } else if (key == 'birth_month' && tag.length > 1) {
-        birthMonth = int.tryParse(tag[1].trim());
-      } else if (key == 'birth_day' && tag.length > 1) {
-        birthDay = int.tryParse(tag[1].trim());
       } else if (key == 'origin_country' && tag.length > 1) {
         originCountry = tag[1].trim().toUpperCase();
       } else if (key == 'origin_city' && tag.length > 1) {
@@ -349,9 +318,6 @@ class TravelProfile {
       createdAt: createdAt,
       name: name,
       gender: gender,
-      birthYear: birthYear,
-      birthMonth: birthMonth,
-      birthDay: birthDay,
       originCountry: originCountry,
       originCity: originCity,
       homeCountry: homeCountry,
@@ -382,15 +348,6 @@ class TravelProfile {
     }
     if (gender != null && gender!.trim().isNotEmpty) {
       tags.add(['gender', gender!.trim()]);
-    }
-    if (birthYear != null) {
-      tags.add(['birth_year', birthYear.toString()]);
-    }
-    if (birthMonth != null) {
-      tags.add(['birth_month', birthMonth.toString()]);
-    }
-    if (birthDay != null) {
-      tags.add(['birth_day', birthDay.toString()]);
     }
 
     // 3. Geographical Locations (Origins, Home, Current)
@@ -482,9 +439,6 @@ class TravelProfile {
     DateTime? createdAt,
     String? name,
     String? gender,
-    int? birthYear,
-    int? birthMonth,
-    int? birthDay,
     String? originCountry,
     String? originCity,
     String? homeCountry,
@@ -508,9 +462,6 @@ class TravelProfile {
       createdAt: createdAt ?? this.createdAt,
       name: name ?? this.name,
       gender: gender ?? this.gender,
-      birthYear: birthYear ?? this.birthYear,
-      birthMonth: birthMonth ?? this.birthMonth,
-      birthDay: birthDay ?? this.birthDay,
       originCountry: originCountry ?? this.originCountry,
       originCity: originCity ?? this.originCity,
       homeCountry: homeCountry ?? this.homeCountry,

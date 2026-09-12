@@ -190,7 +190,7 @@ To prevent standard social clients from clobbering domain-specific profile data 
 - `home_country` / `home_city`: Current residence / base city (ISO 3166-1 alpha-2 code).
 - `current_country` / `current_city`: Active nomad or travel location while on the road (ISO 3166-1 alpha-2 code).
 - `g` (**OPTIONAL**): Cascading geohash tags bounded between 3 to 5 characters for active presence location.
-- `gender` / `birth_year` / `birth_month` / `birth_day`: Optional demographics (`birth_year` calculates age dynamically).
+- `gender`: Optional demographic identifier. (Birth date & age calculation are handled via NIP-24 in Kind 0).
 - `occupation` / `education`: Professional / personal background.
 - `t`: Interests / Topics / Activities (`meetup`, `cycling`, `hiking`, `nostr`).
 - `image`: Direct photo image URLs of adventures, travels, and lifestyle (`["image", "<url>"]`, 1st image is treated as primary/cover).
@@ -206,9 +206,6 @@ To prevent standard social clients from clobbering domain-specific profile data 
     ["d", "travel-profile"],
     ["name", "NomadAlice"],
     ["gender", "female"],
-    ["birth_year", "1995"],
-    ["birth_month", "4"],
-    ["birth_day", "12"],
     ["origin_country", "DE"],
     ["origin_city", "Munich"],
     ["home_country", "FR"],
